@@ -46,10 +46,10 @@ El estudio examina una variedad de métodos de monitoreo, incluyendo caracterís
 
 | Número    | Video/foto | Qué usa    |
 |-----------|------------|------------|
-| 1         | 25         | Madrid     |
-| 2         | 30         | Barcelona  |
-| 3         | 22         | Valencia   |
-| 3         | 28         | Sevilla    |
+| 1         |            |            |
+| 2         |            |            |
+| 3         |            |            |
+| 3         |            |            |
 | 4         |            |            |
 | 5         |            |            |
 | 6         |            |            |
