@@ -44,14 +44,14 @@ El estudio examina una variedad de métodos de monitoreo, incluyendo caracterís
 
 # Tabla
 
-| Número    | Video/foto | Qué usa    |
-|-----------|------------|------------|
-| 1         |            |            |
-| 2         |            |            |
-| 3         |            |            |
-| 3         |            |            |
-| 4         |            |            |
-| 5         |            |            |
-| 6         |            |            |
-| 7         |            |            |
-| 8         |            |            |
+| Número    | Video/foto | Qué usa                                  |
+|-----------|------------|------------------------------------------|
+| 1         |            |                                          |
+| 2         |            |                                          |
+| 3         |            |                                          |
+| 3         |            |                                          |
+| 4         |  foto      | aprendizaje automático y redes neuronales|
+| 5         |  -------   | ---------------------------------------  |
+| 6         |            |                                          |
+| 7         |  foto      | Algoritmo RANSAC                         |
+| 8         |            |                                          |
