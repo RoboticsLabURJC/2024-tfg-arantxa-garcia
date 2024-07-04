@@ -37,38 +37,38 @@ def process_video(video_path):
 
         if results_pose.pose_landmarks: # pintamos la pose en el frame
 
-            # for connection in mp_pose.POSE_CONNECTIONS:
-            #     start_idx = connection[0]
-            #     end_idx = connection[1]
+            for connection in mp_pose.POSE_CONNECTIONS:
+                start_idx = connection[0]
+                end_idx = connection[1]
 
-            #     if start_idx in mp_pose.PoseLandmark.__members__.values() and end_idx in mp_pose.PoseLandmark.__members__.values():
-            #         start_landmark = results_pose.pose_landmarks.landmark[start_idx]
-            #         end_landmark = results_pose.pose_landmarks.landmark[end_idx]
+                if start_idx in mp_pose.PoseLandmark.__members__.values() and end_idx in mp_pose.PoseLandmark.__members__.values():
+                    start_landmark = results_pose.pose_landmarks.landmark[start_idx]
+                    end_landmark = results_pose.pose_landmarks.landmark[end_idx]
 
-            #         # Determinar el color basado en la parte del cuerpo
-            #         if start_idx in [11, 13, 15, 17, 19, 21] and end_idx in [11, 13, 15, 17, 19, 21]:
-            #             color = pose_colors['LEFT_ARM']
-            #         elif start_idx in [12, 14, 16, 18, 20, 22] and end_idx in [12, 14, 16, 18, 20, 22]:
-            #             color = pose_colors['RIGHT_ARM']
-            #         elif start_idx in [23, 25, 27, 29, 31] and end_idx in [23, 25, 27, 29, 31]:
-            #             color = pose_colors['LEFT_LEG']
-            #         elif start_idx in [24, 26, 28, 30, 32] and end_idx in [24, 26, 28, 30, 32]:
-            #             color = pose_colors['RIGHT_LEG']
-            #         elif start_idx in [11, 12, 24, 23] and end_idx in [11, 12, 24, 23]:
-            #             color = pose_colors['TORSO']
-            #         else:
-            #             color = pose_colors['HEAD']
+                    # Determinar el color basado en la parte del cuerpo
+                    if start_idx in [11, 13, 15, 17, 19, 21] and end_idx in [11, 13, 15, 17, 19, 21]:
+                        color = pose_colors['LEFT_ARM']
+                    elif start_idx in [12, 14, 16, 18, 20, 22] and end_idx in [12, 14, 16, 18, 20, 22]:
+                        color = pose_colors['RIGHT_ARM']
+                    elif start_idx in [23, 25, 27, 29, 31] and end_idx in [23, 25, 27, 29, 31]:
+                        color = pose_colors['LEFT_LEG']
+                    elif start_idx in [24, 26, 28, 30, 32] and end_idx in [24, 26, 28, 30, 32]:
+                        color = pose_colors['RIGHT_LEG']
+                    elif start_idx in [11, 12, 24, 23] and end_idx in [11, 12, 24, 23]:
+                        color = pose_colors['TORSO']
+                    else:
+                        color = pose_colors['HEAD']
 
-            #         start_point = (int(start_landmark.x * frame.shape[1]), int(start_landmark.y * frame.shape[0]))
-            #         end_point = (int(end_landmark.x * frame.shape[1]), int(end_landmark.y * frame.shape[0]))
-            #         cv2.line(frame, start_point, end_point, color, 2)
+                    start_point = (int(start_landmark.x * frame.shape[1]), int(start_landmark.y * frame.shape[0]))
+                    end_point = (int(end_landmark.x * frame.shape[1]), int(end_landmark.y * frame.shape[0]))
+                    cv2.line(frame, start_point, end_point, color, 2)
 
-            mp_drawing.draw_landmarks(
-                frame,
-                results_pose.pose_landmarks,
-                mp_pose.POSE_CONNECTIONS,
-                landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=1, circle_radius=2)
-            )
+            # mp_drawing.draw_landmarks(
+            #     frame,
+            #     results_pose.pose_landmarks,
+            #     mp_pose.POSE_CONNECTIONS,
+            #     landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=1, circle_radius=2)
+            # )
 
         if results_hands.multi_hand_landmarks: # pintamos las manos en el frame
             for hand_landmarks in results_hands.multi_hand_landmarks:
