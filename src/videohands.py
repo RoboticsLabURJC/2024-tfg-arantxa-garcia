@@ -186,7 +186,7 @@ class VideoProcessor:
             cv2.imshow('Combined Video', combined_frame)
             out.write(combined_frame)
 
-            time.sleep(0.02)
+            time.sleep(0.02) #  QUITAR ESTO CUANDO PROCESES TODOS LOS FRAMES
 
             if cv2.waitKey(1) & 0xFF == 27:
                 break
@@ -197,6 +197,7 @@ class VideoProcessor:
             cap.release()
         out.release()
         cv2.destroyAllWindows()
+
 
     def load_actions_from_json(self):
         try:
