@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import json
 import time
+import csv
 
 class VideoProcessor:
     def __init__(self, video_path, json_path, draw_pose=False, draw_hands=False, draw_face=False, pose_colors=None):
@@ -15,12 +16,18 @@ class VideoProcessor:
 
         self.mp_pose = mp.solutions.pose
         self.pose = self.mp_pose.Pose()
-        self.mp_hands = mp.solutions.hands
-        self.hands = self.mp_hands.Hands()
+        self.mp_hands = mp.solutions.hands # con uno vale para ambos videos ?????????????????????????????????????????????????????????
+        # self.hands = self.mp_hands.Hands()
+        self.hands_pose = mp.solutions.hands.Hands()  # Para el video de pose
+        self.hands_only = mp.solutions.hands.Hands()  # Para el video de hands
         self.mp_face_mesh = mp.solutions.face_mesh
         self.face_mesh = self.mp_face_mesh.FaceMesh()
         self.mp_drawing = mp.solutions.drawing_utils
         self.drawing_spec = self.mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
+
+        self.face_sync = 0
+        self.hands_sync = 0
+        self.pose_sync = 0
 
         default_pose_colors = {
             'LEFT_ARM': (255, 0, 0),
@@ -98,13 +105,14 @@ class VideoProcessor:
                     connection_drawing_spec=self.drawing_spec
                 )
 
-    def process_video(self):
+    def process_video(self): # EN PROCESO, AUN NO FUNCIONA
         cap = cv2.VideoCapture(self.video_path)
 
         if not cap.isOpened():
             print(f"No se pudo abrir el video: {self.video_path}")
             return
 
+        frame_data = []
         frame_number = 0
         while cap.isOpened():
             success, frame = cap.read()
@@ -124,6 +132,16 @@ class VideoProcessor:
             if self.draw_face:
                 self.process_face(frame, results_face)
 
+            # Agregar información de este frame
+            actions = self.actions.get(frame_number, [])
+            frame_data.append({
+                'frame_number': frame_number,
+                'actions': ', '.join(actions),
+                'pose_sync': self.pose_sync,
+                'hands_sync': self.hands_sync,
+                'face_sync': self.face_sync
+            })
+
             self.print_action_for_frame(frame, frame_number)
 
             cv2.imshow('MediaPipe Hands + Pose + Face', frame)
@@ -135,6 +153,9 @@ class VideoProcessor:
 
         cap.release()
         cv2.destroyAllWindows()
+
+        # Guardar datos en un CSV después de procesar el video
+        self.get_csv(frame_data)
 
     def combine_videos(self, video_paths):
         caps = [cv2.VideoCapture(video_path) for video_path in video_paths]
@@ -155,28 +176,80 @@ class VideoProcessor:
         out = cv2.VideoWriter('combined_video.mp4', fourcc, fps, output_size)
 
         frame_number = 0
+        video_started = [False, False, False]  # Flags to track when each video starts
+
         while all([cap.isOpened() for cap in caps]):
             frames = []
+            cap_number = 0
             for cap in caps:
-                success, frame = cap.read()
-                if not success:
-                    break
-                # Resize each frame to the reduced dimensions
-                frame = cv2.resize(frame, (reduced_width, reduced_height))
+                # If the video has already started, read it normally
+                if video_started[cap_number]:
+                    success, frame = cap.read()
+                    if not success:
+                        break
+                else:
+                    # If it has not started, it pauses in black until the synchronization is complete
+                    frame = np.zeros((height, width, 3), dtype=np.uint8)  # Frame negro
+
+                black_frame = np.zeros((reduced_height, reduced_width, 3), dtype=np.uint8)
+
+                if cap_number == 0:  # First video (pose)
+                    if frame_number >= self.pose_sync:
+                        if not video_started[cap_number]:  # Since frame 0
+                            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                            video_started[cap_number] = True  # Marks the video as started
+
+                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        results_pose = self.pose.process(frame_rgb)
+                        results_hands = self.hands_pose.process(frame_rgb)
+                        self.process_pose(frame, results_pose)
+                        self.process_hands(frame, results_hands) 
+                        frame = cv2.resize(frame, (reduced_width, reduced_height))
+                    else:
+                        frame = black_frame  # Black till synchronization of pose_sync
+
+                elif cap_number == 1:  # Second video (hands)
+                    if frame_number >= self.hands_sync:
+                        if not video_started[cap_number]: 
+                            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                            video_started[cap_number] = True 
+
+                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        results_hands = self.hands_only.process(frame_rgb)
+                        self.process_hands(frame, results_hands)
+                        frame = cv2.resize(frame, (reduced_width, reduced_height))
+                    else:
+                        frame = black_frame  # Black till synchronization of hands_sync
+
+                elif cap_number == 2:  # Third video (face)
+                    if frame_number >= self.face_sync:
+                        if not video_started[cap_number]:
+                            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                            video_started[cap_number] = True  
+
+                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        results_face = self.face_mesh.process(frame_rgb)
+                        self.process_face(frame, results_face)
+                        frame = cv2.resize(frame, (reduced_width, reduced_height))
+                    else:
+                        frame = black_frame  # Black till synchronization of face_sync
+
                 frames.append(frame)
+                cap_number += 1
 
             if len(frames) != len(caps):
                 break
 
             combined_frame = np.zeros((output_size[1], output_size[0], 3), dtype=np.uint8)
 
-            combined_frame[0:reduced_height, 0:reduced_width] = frames[0]
+            # Each frame in its quadrant
+            combined_frame[0:reduced_height, 0:reduced_width] = frames[0]  # First video
             if len(frames) > 1:
-                combined_frame[0:reduced_height, reduced_width:reduced_width*2] = frames[1]
+                combined_frame[0:reduced_height, reduced_width:reduced_width*2] = frames[1]  # Second video
             if len(frames) > 2:
-                combined_frame[reduced_height:reduced_height*2, 0:reduced_width] = frames[2]
+                combined_frame[reduced_height:reduced_height*2, 0:reduced_width] = frames[2]  # Third video
 
-            # Create a blank space in the bottom-right quadrant to display actions
+            # Blank space for actions
             if frame_number in self.actions:
                 actions = self.actions[frame_number]
                 for i, action in enumerate(actions):
@@ -186,9 +259,7 @@ class VideoProcessor:
             cv2.imshow('Combined Video', combined_frame)
             out.write(combined_frame)
 
-            time.sleep(0.02) #  QUITAR ESTO CUANDO PROCESES TODOS LOS FRAMES
-
-            if cv2.waitKey(1) & 0xFF == 27:
+            if cv2.waitKey(1) & 0xFF == 27:  
                 break
 
             frame_number += 1
@@ -197,7 +268,6 @@ class VideoProcessor:
             cap.release()
         out.release()
         cv2.destroyAllWindows()
-
 
     def load_actions_from_json(self):
         try:
@@ -220,7 +290,18 @@ class VideoProcessor:
                             actions[frame] = []
                         if frame_data["type"] not in actions[frame]:
                             actions[frame].append(frame_data["type"])
-        
+
+        for frame_id, frame_data in data["openlabel"]["streams"].items():
+            if "face_camera" in frame_id:
+                self.face_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
+                print("Face sync: ", self.face_sync)
+            elif "hands_camera" in frame_id:
+                self.hands_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
+                print("Hands sync: ", self.hands_sync)
+            elif "body_camera" in frame_id:
+                self.pose_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
+                print("Pose sync: ", self.pose_sync)
+                    
         return actions
 
     def print_action_for_frame(self, frame, frame_number):
@@ -228,6 +309,16 @@ class VideoProcessor:
             actions = self.actions[frame_number]
             for i, action in enumerate(actions):
                 cv2.putText(frame, action, (10, 30 + i * 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+
+    def get_csv(self, frame_data):
+        csv_file = 'video_frame_data.csv'
+        with open(csv_file, mode='w', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=['frame_number', 'actions', 'pose_sync', 'hands_sync', 'face_sync'])
+            writer.writeheader()
+            for data in frame_data:
+                writer.writerow(data)
+        print(f"Datos guardados en {csv_file}")
+        
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
