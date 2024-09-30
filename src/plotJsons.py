@@ -18,8 +18,8 @@ class PlotJson:
     def get_files(self):
         try:
             if os.path.isdir(self.directory_path):
-                self.files = [archivo for archivo in os.listdir(self.directory_path)
-                                 if os.path.isfile(os.path.join(self.directory_path, archivo))]
+                self.files = [file for file in os.listdir(self.directory_path)
+                                 if os.path.isfile(os.path.join(self.directory_path, file))]
             else:
                 print(f"{self.directory_path} no es un directorio válido.")
         except Exception as e:
@@ -72,10 +72,6 @@ class PlotJson:
                             for action in self.actions_with_all_frames:
                                 if action[0] == frame_data["type"]:
                                     action.append(frame_inter)
-                                    # print("action: ", action)
-                                    # print("other action: ", self.actions[0])
-                                    # exit()
-
                         action_type = frame_data["type"].split('/')[0]
 
                         # print("action_type: ", action_type)
@@ -123,9 +119,6 @@ class PlotJson:
                             for action in self.actions_with_all_frames:
                                 if action[0] == frame_data["type"]:
                                     action.append(frame_inter)
-                                    # print("action: ", action)
-                                    # print("other action: ", self.actions[0])
-                                    # exit()
 
                         action_type = frame_data["type"].split('/')[0]
 
@@ -161,9 +154,6 @@ class PlotJson:
         max_frames = [item[3] for item in self.actions]    
         avg_frames = [item[4] / item[1] for item in self.actions]  
 
-        # categories_especified = [item[0] for item in self.actions_especified]
-        # values_especified = [item[1] for item in self.actions_especified]
-
         fig, ax1 = plt.subplots(figsize=(10, 6))
 
         x = np.arange(len(categories))
@@ -185,17 +175,6 @@ class PlotJson:
 
         plt.title('Total number of actions and frames')
         fig.tight_layout() 
-
-        # print("avg_frames: ", avg_frames)
-        # print("avg_frames len: ", len(avg_frames))
-        # print("categories len: ", len(categories))
-
-        # if len(avg_frames) != len(categories):
-        #     raise ValueError(f"Mismatch: avg_frames has {len(avg_frames)} elements, but categories has {len(categories)}.")
-
-        # print("min_frames: ", min_frames)
-        # print("max_frames: ", max_frames)
-        # print("avg_frames: ", avg_frames)
 
         action_corrected = []
 

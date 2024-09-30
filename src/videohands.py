@@ -6,6 +6,10 @@ import json
 import time
 import csv
 import os
+from helpers import relative, relativeT
+import cv2 
+import copy
+
 
 class VideoProcessor:
     def __init__(self, video_path, json_path, draw_pose=False, draw_hands=False, draw_face=False, pose_colors=None):
@@ -39,7 +43,7 @@ class VideoProcessor:
             'RIGHT_ARM': (0, 255, 0),
             'LEFT_LEG': (0, 0, 255),
             'RIGHT_LEG': (255, 255, 0),
-            'TORSO': (255, 0, 255),
+            'TRUNK': (255, 0, 255),
             'HEAD': (0, 255, 255)
         }
 
@@ -70,7 +74,7 @@ class VideoProcessor:
                     elif start_idx in [12, 14, 16, 18, 20, 22] and end_idx in [12, 14, 16, 18, 20, 22]:
                         color = self.pose_colors['RIGHT_ARM']
                     elif start_idx in [11, 12, 24, 23] and end_idx in [11, 12, 24, 23]:
-                        color = self.pose_colors['TORSO']
+                        color = self.pose_colors['TRUNK']
                     else:
                         continue
 
@@ -82,73 +86,83 @@ class VideoProcessor:
         if results_pose.pose_landmarks:
             for idx, landmark in enumerate(results_pose.pose_landmarks.landmark):
                 # Define los puntos clave que quieres guardar en el JSON.
-                if idx == 11:  # pnt1 en torso
-                    self.data_pose['torso']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    self.data_pose['brazos']['izquierdo']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                elif idx == 12:  # pnt2 en torso
-                    self.data_pose['torso']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
-                    self.data_pose['brazos']['derecho']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
+                if idx == 11:  # kp1 en trunk
+                    self.data_pose['trunk']['kp1'] = {'x': landmark.x, 'y': landmark.y}
+                    self.data_pose['arms']['left']['kp1'] = {'x': landmark.x, 'y': landmark.y}
+                elif idx == 12:  # kp2 en trunk
+                    self.data_pose['trunk']['kp2'] = {'x': landmark.x, 'y': landmark.y}
+                    self.data_pose['arms']['right']['kp1'] = {'x': landmark.x, 'y': landmark.y}
                 elif idx == 23:
-                    self.data_pose['torso']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
+                    self.data_pose['trunk']['kp3'] = {'x': landmark.x, 'y': landmark.y}
                 elif idx == 24:
-                    self.data_pose['torso']['pnt4'] = {'x': landmark.x, 'y': landmark.y}
-                elif idx == 13:  # pnt1 en brazo izquierdo
-                    self.data_pose['brazos']['izquierdo']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
+                    self.data_pose['trunk']['kp4'] = {'x': landmark.x, 'y': landmark.y}
+                elif idx == 13:  # kp1 en brazo left
+                    self.data_pose['arms']['left']['kp2'] = {'x': landmark.x, 'y': landmark.y}
                 elif idx == 15:
-                    self.data_pose['brazos']['izquierdo']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
-                elif idx == 14:  # pnt1 en brazo derecho
-                    self.data_pose['brazos']['derecho']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
+                    self.data_pose['arms']['left']['kp3'] = {'x': landmark.x, 'y': landmark.y}
+                elif idx == 14:  # kp1 en brazo right
+                    self.data_pose['arms']['right']['kp2'] = {'x': landmark.x, 'y': landmark.y}
                 elif idx == 16:
-                    self.data_pose['brazos']['derecho']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
+                    self.data_pose['arms']['right']['kp3'] = {'x': landmark.x, 'y': landmark.y}
 
         if results_hands.multi_hand_landmarks:
             for hand_idx, hand_landmarks in enumerate(results_hands.multi_hand_landmarks):
                 handedness = results_hands.multi_handedness[hand_idx].classification[0].label
 
-                # Decide si es mano izquierda o derecha
-                hand_key = 'izquierda' if handedness == 'Left' else 'derecha'
+                # Decide si es mano left o right
+                hand_key = 'left' if handedness == 'Left' else 'right'
 
                 # Itera sobre los landmarks de la mano
                 for idx, landmark in enumerate(hand_landmarks.landmark):
                     if idx == 0:
-                        self.data_pose['manos'][hand_key]['pnt1'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp1'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 1:
-                        self.data_pose['manos'][hand_key]['pnt2'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp2'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 2:
+                        self.data_pose['hands'][hand_key]['kp3'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 3:
+                        self.data_pose['hands'][hand_key]['kp4'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 4:
-                        self.data_pose['manos'][hand_key]['pnt3'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp5'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 5:
-                        self.data_pose['manos'][hand_key]['pnt4'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp6'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 6:
+                        self.data_pose['hands'][hand_key]['kp7'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 7:
-                        self.data_pose['manos'][hand_key]['pnt5'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp8'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 8:
-                        self.data_pose['manos'][hand_key]['pnt6'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp9'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 9:
-                        self.data_pose['manos'][hand_key]['pnt7'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 11:
-                        self.data_pose['manos'][hand_key]['pnt8'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp10'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 10:
+                        self.data_pose['hands'][hand_key]['kp11'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 11: 
+                        self.data_pose['hands'][hand_key]['kp12'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 12:
-                        self.data_pose['manos'][hand_key]['pnt9'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp13'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 13:
-                        self.data_pose['manos'][hand_key]['pnt10'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp14'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 14:
+                        self.data_pose['hands'][hand_key]['kp15'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 15:
-                        self.data_pose['manos'][hand_key]['pnt11'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 16: 
-                        self.data_pose['manos'][hand_key]['pnt12'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp16'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 16:
+                        self.data_pose['hands'][hand_key]['kp17'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 17:
-                        self.data_pose['manos'][hand_key]['pnt13'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp18'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 18:
+                        self.data_pose['hands'][hand_key]['kp19'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 19:
-                        self.data_pose['manos'][hand_key]['pnt14'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 20:
-                        self.data_pose['manos'][hand_key]['pnt15'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_pose['hands'][hand_key]['kp20'] = {'x': landmark.x, 'y': landmark.y}
 
                 center_x, center_y = self.calculate_center_of_mass(hand_landmarks.landmark)
-                self.data_pose['manos'][hand_key]['center'] = {'x': center_x, 'y': center_y}
+                self.data_pose['hands'][hand_key]['center'] = {'x': center_x, 'y': center_y}
                 
         new_iteration = {
             'frame': len(self.data_pose['iterations']) + 1,  # número de iteración (puedes modificarlo)
-            'torso': self.data_pose['torso'],
-            'brazos': self.data_pose['brazos'],
-            'manos': self.data_pose['manos']
+            'trunk': self.data_pose['trunk'].copy(),
+            'arms': copy.deepcopy(self.data_pose['arms']),
+            'hands': copy.deepcopy(self.data_pose['hands'])
         }
 
         self.data_pose['iterations'].append(new_iteration)
@@ -176,50 +190,61 @@ class VideoProcessor:
             for hand_idx, hand_landmarks in enumerate(results_hands.multi_hand_landmarks):
                 handedness = results_hands.multi_handedness[hand_idx].classification[0].label
 
-                # Decide si es mano izquierda o derecha
-                hand_key = 'izquierda' if handedness == 'Left' else 'derecha'
+                # Decide si es mano left o right
+                hand_key = 'left' if handedness == 'Left' else 'right'
 
                 # Itera sobre los landmarks de la mano
                 for idx, landmark in enumerate(hand_landmarks.landmark):
-                    if idx == 0:  # pnt1 en la mano
-                        self.data_hands[hand_key]['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 1:  # pnt2 en la mano
-                        self.data_hands[hand_key]['pnt2'] = {'x': landmark.x, 'y': landmark.y}
+                    if idx == 0:  # kp1 en la mano
+                        self.data_hands[hand_key]['kp1'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 1:  # kp2 en la mano
+                        self.data_hands[hand_key]['kp2'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 2:
+                        self.data_hands[hand_key]['kp3'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 3:
+                        self.data_hands[hand_key]['kp4'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 4:
-                        self.data_hands[hand_key]['pnt3'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp5'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 5:
-                        self.data_hands[hand_key]['pnt4'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp6'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 6:
+                        self.data_hands[hand_key]['kp7'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 7:
-                        self.data_hands[hand_key]['pnt5'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp8'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 8:
-                        self.data_hands[hand_key]['pnt6'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp9'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 9:
-                        self.data_hands[hand_key]['pnt7'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp10'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 10:
+                        self.data_hands[hand_key]['kp11'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 11:
-                        self.data_hands[hand_key]['pnt8'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp12'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 12:
-                        self.data_hands[hand_key]['pnt9'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp13'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 13:
-                        self.data_hands[hand_key]['pnt10'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp14'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 14:
+                        self.data_hands[hand_key]['kp15'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 15:
-                        self.data_hands[hand_key]['pnt11'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp16'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 16:
-                        self.data_hands[hand_key]['pnt12'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp17'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 17:
-                        self.data_hands[hand_key]['pnt13'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp18'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 18:
+                        self.data_hands[hand_key]['kp19'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 19:
-                        self.data_hands[hand_key]['pnt14'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 20:
-                        self.data_hands[hand_key]['pnt15'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_hands[hand_key]['kp20'] = {'x': landmark.x, 'y': landmark.y}
 
                 # Calcula el centro de la mano (opcional)
                 center_x, center_y = self.calculate_center_of_mass(hand_landmarks.landmark)
                 self.data_hands[hand_key]['center'] = {'x': center_x, 'y': center_y}
 
+        # Haz una copia profunda de los diccionarios 'left' y 'right' antes de agregarlos a la lista 'iterations'
         new_iteration = {
-            'frame': len(self.data_hands['iterations']) + 1,  # número de iteración (puedes modificar
-            'izquierda': self.data_hands['izquierda'],
-            'derecha': self.data_hands['derecha']
+            'frame': len(self.data_hands['iterations']) + 1,  # número de iteración
+            'left': self.data_hands['left'].copy(),  # Copia del diccionario 'left'
+            'right': self.data_hands['right'].copy()  # Copia del diccionario 'right'
         }
 
         self.data_hands['iterations'].append(new_iteration)
@@ -228,8 +253,106 @@ class VideoProcessor:
         # with open("hands_json.json", 'w') as json_file:
         #     json.dump(self.data_hands, json_file, indent=4)
 
+    def gaze(self, frame, points): # LO HE SACADO DE https://github.com/amitt1236/Gaze_estimation/tree/master
+        """
+        The gaze function gets an image and face landmarks from mediapipe framework.
+        The function draws the gaze direction into the frame.
+        """
+
+        '''
+        2D image points.
+        relative takes mediapipe points that is normalized to [-1, 1] and returns image points
+        at (x,y) format
+        '''
+        image_points = np.array([
+            relative(points.landmark[4], frame.shape),  # Nose tip
+            relative(points.landmark[152], frame.shape),  # Chin
+            relative(points.landmark[263], frame.shape),  # Left eye left corner
+            relative(points.landmark[33], frame.shape),  # Right eye right corner
+            relative(points.landmark[287], frame.shape),  # Left Mouth corner
+            relative(points.landmark[57], frame.shape)  # Right mouth corner
+        ], dtype="double")
+
+        '''
+        2D image points.
+        relativeT takes mediapipe points that is normalized to [-1, 1] and returns image points
+        at (x,y,0) format
+        '''
+        image_points1 = np.array([
+            relativeT(points.landmark[4], frame.shape),  # Nose tip
+            relativeT(points.landmark[152], frame.shape),  # Chin
+            relativeT(points.landmark[263], frame.shape),  # Left eye, left corner
+            relativeT(points.landmark[33], frame.shape),  # Right eye, right corner
+            relativeT(points.landmark[287], frame.shape),  # Left Mouth corner
+            relativeT(points.landmark[57], frame.shape)  # Right mouth corner
+        ], dtype="double")
+
+        # 3D model points.
+        model_points = np.array([
+            (0.0, 0.0, 0.0),  # Nose tip
+            (0, -63.6, -12.5),  # Chin
+            (-43.3, 32.7, -26),  # Left eye, left corner
+            (43.3, 32.7, -26),  # Right eye, right corner
+            (-28.9, -28.9, -24.1),  # Left Mouth corner
+            (28.9, -28.9, -24.1)  # Right mouth corner
+        ])
+
+        '''
+        3D model eye points
+        The center of the eye ball
+        '''
+        Eye_ball_center_right = np.array([[-29.05], [32.7], [-39.5]])
+        Eye_ball_center_left = np.array([[29.05], [32.7], [-39.5]])  # the center of the left eyeball as a vector.
+
+        '''
+        camera matrix estimation
+        '''
+        focal_length = frame.shape[1]
+        center = (frame.shape[1] / 2, frame.shape[0] / 2)
+        camera_matrix = np.array(
+            [[focal_length, 0, center[0]],
+            [0, focal_length, center[1]],
+            [0, 0, 1]], dtype="double"
+        )
+
+        dist_coeffs = np.zeros((4, 1))  # Assuming no lens distortion
+        (success, rotation_vector, translation_vector) = cv2.solvePnP(model_points, image_points, camera_matrix,
+                                                                    dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE)
+
+        # 2d pupil location
+        # print("landmark length: ", len(points.landmark))
+
+        left_pupil = relative(points.landmark[467], frame.shape)
+        # right_pupil = relative(points.landmark[473], frame.shape)
+
+        # Transformation between image point to world point
+        _, transformation, _ = cv2.estimateAffine3D(image_points1, model_points)  # image to world transformation
+
+        if transformation is not None:  # if estimateAffine3D secsseded
+            # project pupil image point into 3d world point 
+            pupil_world_cord = transformation @ np.array([[left_pupil[0], left_pupil[1], 0, 1]]).T
+
+            # 3D gaze point (10 is arbitrary value denoting gaze distance)
+            S = Eye_ball_center_left + (pupil_world_cord - Eye_ball_center_left) * 10
+
+            # Project a 3D gaze direction onto the image plane.
+            (eye_pupil2D, _) = cv2.projectPoints((int(S[0]), int(S[1]), int(S[2])), rotation_vector,
+                                                translation_vector, camera_matrix, dist_coeffs)
+            # project 3D head pose into the image plane
+            (head_pose, _) = cv2.projectPoints((int(pupil_world_cord[0]), int(pupil_world_cord[1]), int(40)),
+                                            rotation_vector,
+                                            translation_vector, camera_matrix, dist_coeffs)
+            # correct gaze for head rotation
+            gaze = left_pupil + (eye_pupil2D[0][0] - left_pupil) - (head_pose[0][0] - left_pupil)
+
+            # Draw gaze line into screen
+            p1 = (int(left_pupil[0]), int(left_pupil[1]))
+            p2 = (int(gaze[0]), int(gaze[1]))
+            cv2.line(frame, p1, p2, (0, 0, 255), 2)
+            
     def process_face(self, frame, results_face):
         if results_face.multi_face_landmarks:
+            self.gaze(frame, results_face.multi_face_landmarks[0])
             for face_landmarks in results_face.multi_face_landmarks:
                 self.mp_drawing.draw_landmarks(
                     image=frame,
@@ -243,118 +366,65 @@ class VideoProcessor:
         if results_face.multi_face_landmarks:
             for face_idx, face_landmarks in enumerate(results_face.multi_face_landmarks):
                 for idx, landmark in enumerate(face_landmarks.landmark):
-                    if idx == 475:
-                        self.data_face['ojos']['izquierdo']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 477:
-                        self.data_face['ojos']['izquierdo']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 381:
-                        self.data_face['ojos']['izquierdo']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 377:
-                        self.data_face['ojos']['izquierdo']['pnt4'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 382:
-                        self.data_face['ojos']['izquierdo']['pnt5'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 395:
-                        self.data_face['ojos']['izquierdo']['pnt6'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 470:
-                        self.data_face['ojos']['derecho']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 472:
-                        self.data_face['ojos']['derecho']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 153:
-                        self.data_face['ojos']['derecho']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 163:
-                        self.data_face['ojos']['derecho']['pnt4'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 154:
-                        self.data_face['ojos']['derecho']['pnt5'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 7:
-                        self.data_face['ojos']['derecho']['pnt6'] = {'x': landmark.x, 'y': landmark.y}
+                    if idx == 17:
+                        self.data_face['face']['kp1'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 61:
+                        self.data_face['face']['kp2'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 291:
+                        self.data_face['face']['kp3'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 0:
-                        self.data_face['boca']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 267:
-                        self.data_face['boca']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 37:
-                        self.data_face['boca']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 270:
-                        self.data_face['boca']['pnt4'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 40:
-                        self.data_face['boca']['pnt5'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 13:
-                        self.data_face['boca']['pnt6'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 14:
-                        self.data_face['boca']['pnt7'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 17:
-                        self.data_face['boca']['pnt8'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 178:
-                        self.data_face['boca']['pnt9'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 402:
-                        self.data_face['boca']['pnt10'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 336:
-                        self.data_face['cejas']['izquierda']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 334:
-                        self.data_face['cejas']['izquierda']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 300:
-                        self.data_face['cejas']['izquierda']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 283:
-                        self.data_face['cejas']['izquierda']['pnt4'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 285:
-                        self.data_face['cejas']['izquierda']['pnt5'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 107:
-                        self.data_face['cejas']['derecha']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 105:
-                        self.data_face['cejas']['derecha']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 70:
-                        self.data_face['cejas']['derecha']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 53:
-                        self.data_face['cejas']['derecha']['pnt4'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 55:
-                        self.data_face['cejas']['derecha']['pnt5'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 1:
-                        self.data_face['nariz']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 4:
-                        self.data_face['nariz']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 5:
-                        self.data_face['nariz']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 64:
-                        self.data_face['nariz']['pnt4'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 294:
-                        self.data_face['nariz']['pnt5'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 280:
-                        self.data_face['mejillas']['izquierda']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 347:
-                        self.data_face['mejillas']['izquierda']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 352:
-                        self.data_face['mejillas']['izquierda']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_face['face']['kp4'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 206:
+                        self.data_face['face']['kp5'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 426:
+                        self.data_face['face']['kp6'] = {'x': landmark.x, 'y': landmark.y}
                     elif idx == 50:
-                        self.data_face['mejillas']['derecha']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 118:
-                        self.data_face['mejillas']['derecha']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 132:
-                        self.data_face['mejillas']['derecha']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 151:
-                        self.data_face['frente']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 10:
-                        self.data_face['frente']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 9:
-                        self.data_face['frente']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 337:
-                        self.data_face['frente']['pnt4'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 108:
-                        self.data_face['frente']['pnt5'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 119:
-                        self.data_face['menton']['pnt1'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 32:
-                        self.data_face['menton']['pnt2'] = {'x': landmark.x, 'y': landmark.y}
-                    elif idx == 262:
-                        self.data_face['menton']['pnt3'] = {'x': landmark.x, 'y': landmark.y}
+                        self.data_face['face']['kp7'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 48:
+                        self.data_face['face']['kp8'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 4:
+                        self.data_face['face']['kp9'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 278:
+                        self.data_face['face']['kp10'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 280:
+                        self.data_face['face']['kp11'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 145:
+                        self.data_face['face']['kp12'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 122:
+                        self.data_face['face']['kp13'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 351:
+                        self.data_face['face']['kp14'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 374:
+                        self.data_face['face']['kp15'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 130:
+                        self.data_face['face']['kp16'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 133:
+                        self.data_face['face']['kp17'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 362:
+                        self.data_face['face']['kp18'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 359:
+                        self.data_face['face']['kp19'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 159:
+                        self.data_face['face']['kp20'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 386:
+                        self.data_face['face']['kp21'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 46:
+                        self.data_face['face']['kp22'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 276:
+                        self.data_face['face']['kp23'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 105:
+                        self.data_face['face']['kp24'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 107:
+                        self.data_face['face']['kp25'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 336:
+                        self.data_face['face']['kp26'] = {'x': landmark.x, 'y': landmark.y}
+                    elif idx == 334:
+                        self.data_face['face']['kp27'] = {'x': landmark.x, 'y': landmark.y}
+                    
 
         new_iteration = {
             'frame': len(self.data_face['iterations']) + 1,  # número de iteración (puedes modificarlo)
-            'ojos': self.data_face['ojos'],
-            'boca': self.data_face['boca'],
-            'cejas': self.data_face['cejas'],
-            'nariz': self.data_face['nariz'],
-            'mejillas': self.data_face['mejillas'],
-            'frente': self.data_face['frente'],
-            'menton': self.data_face['menton']
+            'face': copy.deepcopy(self.data_face['face'])
         }
 
         self.data_face['iterations'].append(new_iteration)        
@@ -529,7 +599,6 @@ class VideoProcessor:
         cv2.destroyAllWindows()
 
     def load_json(self, video_paths):
-
         self.create_json()
 
         caps = [cv2.VideoCapture(video_path) for video_path in video_paths]
@@ -571,43 +640,41 @@ class VideoProcessor:
                 black_frame = np.zeros((reduced_height, reduced_width, 3), dtype=np.uint8)
 
                 if cap_number == 0:  # First video (pose)
-                    # print("cap 0")
                     if frame_number >= self.pose_sync:
-                        if not video_started[cap_number]:  # Since frame 0
+                        if not video_started[cap_number]:
                             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                            video_started[cap_number] = True  # Marks the video as started
+                            video_started[cap_number] = True
 
                         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         results_pose = self.pose.process(frame_rgb)
                         results_hands = self.hands_pose.process(frame_rgb)
                         self.process_pose(frame, results_pose)
-                        self.process_hands(frame, results_hands) 
+                        self.process_hands(frame, results_hands)
 
                         self.update_pose_json(results_pose, results_hands)
                     else:
                         frame = black_frame  # Black till synchronization of pose_sync
 
                 elif cap_number == 1:  # Second video (hands)
-                    # print("cap 1")
+                    # print("entra al segundo video")
                     if frame_number >= self.hands_sync:
-                        if not video_started[cap_number]: 
+                        if not video_started[cap_number]:
                             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                            video_started[cap_number] = True 
+                            video_started[cap_number] = True
 
                         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         results_hands = self.hands_only.process(frame_rgb)
                         self.process_hands(frame, results_hands)
-
+                        # print("aqui si")
                         self.update_hands_json(results_hands)
                     else:
                         frame = black_frame  # Black till synchronization of hands_sync
 
                 elif cap_number == 2:  # Third video (face)
-                    # print("cap 2")
                     if frame_number >= self.face_sync:
                         if not video_started[cap_number]:
                             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                            video_started[cap_number] = True  
+                            video_started[cap_number] = True
 
                         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         results_face = self.face_mesh.process(frame_rgb)
@@ -619,40 +686,43 @@ class VideoProcessor:
 
                 cap_number += 1
 
-            if cv2.waitKey(1) & 0xFF == 27:  
+            if cv2.waitKey(1) & 0xFF == 27:
                 break
 
-            if(frame_number % 400 == 0):
-                with open("pose_json.json", 'w') as json_file:
-                    json.dump(self.data_pose, json_file, indent=4)
-                
-                with open("hands_json.json", 'w') as json_file:
-                    json.dump(self.data_hands, json_file, indent=4)
-
-                with open("face_json.json", 'w') as json_file:
-                    json.dump(self.data_face, json_file, indent=4)
+            if(frame_number % 500 == 0):
+                # Guarda todos los JSON cada 400 frames
+                # print("Guardando JSON...")
+                self.save_json_files() # GUARDO LA PRIMERA POSICION 400 VECES
 
             frame_number += 1
-
             print(frame_number)
 
             if end_video:
-               break
+                break
 
         print("se acabó")
+        self.save_json_files()
+
+        for cap in caps:
+            cap.release()
+        out.release()
+
+    def save_json_files(self):
+        # print(self.data_hands)
+        # print("\n")
+        # print("--------------------------------------------------------------------------------------")
+        # print("\n")
         with open("pose_json.json", 'w') as json_file:
             json.dump(self.data_pose, json_file, indent=4)
-        
+
         with open("hands_json.json", 'w') as json_file:
             json.dump(self.data_hands, json_file, indent=4)
 
         with open("face_json.json", 'w') as json_file:
             json.dump(self.data_face, json_file, indent=4)
 
-        for cap in caps:
-            cap.release()
-        out.release()
-
+        # time.sleep(2)
+    
     def load_actions_from_json(self):
         try:
             with open(self.json_path, 'r', encoding='utf-8-sig') as f:
@@ -704,18 +774,18 @@ class VideoProcessor:
         else:
             self.data_pose = {
                 'iterations': [],
-                'torso': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 5)},
-                'brazos': {
-                    'izquierdo': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 4)},
-                    'derecho': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 4)}
+                'trunk': {f'kp{i}': {'x': 0, 'y': 0} for i in range(1, 5)}, # cambialro luego todos
+                'arms': {
+                    'left': {f'kp{i}': {'x': 0, 'y': 0} for i in range(1, 4)},
+                    'right': {f'kp{i}': {'x': 0, 'y': 0} for i in range(1, 4)}
                 },
-                'manos': {
-                    'izquierda': {
-                        **{f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 16)},  # Añadimos los puntos
+                'hands': {
+                    'left': {
+                        **{f'kp{i}': {'x': 0, 'y': 0} for i in range(1, 20)},  # Añadimos los puntos
                         'center': {'x': 0, 'y': 0}  # Luego añadimos el 'center'
                     },
-                    'derecha': {
-                        **{f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 16)},  # Añadimos los puntos
+                    'right': {
+                        **{f'kp{i}': {'x': 0, 'y': 0} for i in range(1, 20)},  # Añadimos los puntos
                         'center': {'x': 0, 'y': 0}  # Luego añadimos el 'center'
                     }
                 }
@@ -731,22 +801,7 @@ class VideoProcessor:
         else:
             self.data_face = {
                 'iterations': [],
-                'ojos': {
-                    'izquierdo': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 7)},
-                    'derecho': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 7)}
-                },
-                'boca': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 11)},
-                'cejas': {
-                    'izquierda': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 6)},
-                    'derecha': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 6)}
-                },
-                'nariz': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 6)},
-                'mejillas': {
-                    'izquierda': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 4)},
-                    'derecha': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 4)}
-                },
-                'frente': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 4)},
-                'menton': {f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 4)}
+                'face': {f'kp{i}': {'x': 0, 'y': 0} for i in range(1, 28)}
             }
 
         with open("face_json.json", 'w') as json_file:
@@ -759,13 +814,13 @@ class VideoProcessor:
         else:
             self.data_hands = {
                 'iterations': [],
-                'izquierda': {
-                    **{f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 16)},  # Añadir puntos
-                    'center': {'x': 0, 'y': 0}  # Añadir 'center' dentro de 'izquierda'
+                'left': {
+                    **{f'kp{i}': {'x': 0, 'y': 0} for i in range(1, 20)},  # Añadir puntos
+                    'center': {'x': 0, 'y': 0}  # Añadir 'center' dentro de 'left'
                 },
-                'derecha': {
-                    **{f'pnt{i}': {'x': 0, 'y': 0} for i in range(1, 16)},  # Añadir puntos
-                    'center': {'x': 0, 'y': 0}  # Añadir 'center' dentro de 'derecha'
+                'right': {
+                    **{f'kp{i}': {'x': 0, 'y': 0} for i in range(1, 20)},  # Añadir puntos
+                    'center': {'x': 0, 'y': 0}  # Añadir 'center' dentro de 'right'
                 }
             }
 
