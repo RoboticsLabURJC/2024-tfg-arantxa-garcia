@@ -8,6 +8,7 @@ import csv
 import os
 from helpers import relative, relativeT
 import cv2 
+from time import sleep
 
 class videoReconstructor:
     def __init__(self, json_1, json_2, json_3, json_4, video_1, video_2, video_3):
@@ -18,6 +19,32 @@ class videoReconstructor:
         self.data_hands = []
         self.data_face = []
         self.data_pose = []
+
+        self.HANDS_CONNECTION = [
+            (0, 1), (1, 2), (2, 3), (3, 4),
+            (0, 5), (5, 6), (6, 7), (7, 8),
+            (5, 9), (9, 10), (10, 11), (11, 12),
+            (9, 13), (13, 14), (14, 15), (15, 16),
+            (0, 17), (13, 17), (17, 18), (18, 19), (19, 20)
+        ]
+
+        self.FACE_CONNECTION = [ 
+            (17, 291), (17, 61), (0, 61), (0, 291),
+            (61, 4), (4, 291), (4, 48), (4, 278),
+            (291, 426), (61, 206), (61, 50), (291, 280),
+            (206, 48), (426, 278), (48, 50), (278, 280),
+            (4, 107), (4, 336), (50, 145), (280, 374),
+            (122, 107), (122, 145), (351, 336), (351, 374),
+            (145, 130), (145, 133), (374, 359), (374, 362),
+            (130, 159), (130, 46), (359, 386), (359, 276),
+            (133, 159), (362, 386), (46, 105), (276, 334),
+            (105, 107), (334, 336)          
+        ]
+
+        self.POSE_CONNECTION = [
+            (12, 24), (12, 11), (11, 23), (24, 23),
+            (12, 14), (14, 16), (11, 13), (13, 15),
+        ]
         
     def get_files(self):
         try:
@@ -217,6 +244,16 @@ class videoReconstructor:
                             y = int(value["y"] * frame.shape[0])
                             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
+                        # print("Left: ", keypoints)
+                        # sleep(100)
+
+                        self.draw_connections(frame, keypoints, self.HANDS_CONNECTION)
+
+                        keypoints_center = iterations["left"]["center"]
+                        x = int(keypoints_center["x"] * frame.shape[1])
+                        y = int(keypoints_center["y"] * frame.shape[0])
+                        cv2.circle(frame, (x, y), 20, (255, 0, 0), -1)
+
                             # print(f"x: {x}, y: {y}")
 
                         keypoints = iterations["right"]  # Esto debe contener los kp1, kp2, ..., kp15, center
@@ -224,6 +261,13 @@ class videoReconstructor:
                             x = int(value["x"] * frame.shape[1])
                             y = int(value["y"] * frame.shape[0])
                             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+
+                        self.draw_connections(frame, keypoints, self.HANDS_CONNECTION)
+
+                        keypoints_center = iterations["right"]["center"]
+                        x = int(keypoints_center["x"] * frame.shape[1])
+                        y = int(keypoints_center["y"] * frame.shape[0])
+                        cv2.circle(frame, (x, y), 20, (255, 0, 0), -1)
 
                             # print(f"x: {x}, y: {y}")
 
@@ -240,18 +284,24 @@ class videoReconstructor:
                             x = int(value["x"] * frame.shape[1])
                             y = int(value["y"] * frame.shape[0])
                             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+
+                        self.draw_connections(frame, keypoints_trunk, self.POSE_CONNECTION)
                         
                         keypoints_arm_left = iterations["arms"]["left"]
                         for key, value in keypoints_arm_left.items():
                             x = int(value["x"] * frame.shape[1])
                             y = int(value["y"] * frame.shape[0])
                             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+
+                        self.draw_connections(frame, keypoints_arm_left, self.POSE_CONNECTION)
                         
                         keypoints_arm_right = iterations["arms"]["right"]
                         for key, value in keypoints_arm_right.items():
                             x = int(value["x"] * frame.shape[1])
                             y = int(value["y"] * frame.shape[0])
                             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+
+                        self.draw_connections(frame, keypoints_arm_right, self.POSE_CONNECTION)
                             
                         keypoints_hand_left = iterations["hands"]["left"]
                         for key, value in keypoints_hand_left.items():
@@ -259,29 +309,76 @@ class videoReconstructor:
                             y = int(value["y"] * frame.shape[0])
                             cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)
 
+                        self.draw_connections(frame, keypoints_hand_left, self.HANDS_CONNECTION)
+
+                        keypoints_hand_left_center = iterations["hands"]["left"]["center"]
+                        x = int(keypoints_hand_left_center["x"] * frame.shape[1])
+                        y = int(keypoints_hand_left_center["y"] * frame.shape[0])
+                        cv2.circle(frame, (x, y), 20, (255, 0, 0), -1)
+
                         keypoints_hand_right = iterations["hands"]["right"]
                         for key, value in keypoints_hand_right.items():
                             x = int(value["x"] * frame.shape[1])
                             y = int(value["y"] * frame.shape[0])
                             cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)
+
+                        self.draw_connections(frame, keypoints_hand_right, self.HANDS_CONNECTION)
+
+                        keypoints_hand_right_center = iterations["hands"]["right"]["center"]
+                        x = int(keypoints_hand_right_center["x"] * frame.shape[1])
+                        y = int(keypoints_hand_right_center["y"] * frame.shape[0])
+                        cv2.circle(frame, (x, y), 20, (255, 0, 0), -1)
+
         elif json == "face":
             data = self.data_face
             # print("Face")
             if "iterations" in data:
                 for iterations in data["iterations"]:
                     if iterations["frame"] == frame_number:
-                        # Supongamos que los keypoints están en 'iterations["keypoints"]'
-                        # print(iterations)
                         keypoints = iterations["face"]
                         for key, value in keypoints.items():
-                            x = int(value["x"] * frame.shape[1])
-                            y = int(value["y"] * frame.shape[0])
-                            cv2.circle(frame, (x, y), 5, (128, 255, 32), -1)
+                            if(key.startswith("kp")):
+                                x = int(value["x"] * frame.shape[1])
+                                y = int(value["y"] * frame.shape[0])
+                                cv2.circle(frame, (x, y), 5, (128, 255, 32), -1)
+
+                            else:
+                                # print("ALGUIEN?")
+                                p1 = keypoints["gaze"]["p1"]
+                                p2 = keypoints["gaze"]["p2"]
+
+                                x1 = int(p1["x"]) # * frame.shape[1])
+                                y1 = int(p1["y"]) # * frame.shape[0])
+                                x2 = int(p2["x"]) # * frame.shape[1])
+                                y2 = int(p2["y"]) # * frame.shape[0])
+
+                                # print(f"x1: {x1}, y1: {y1}, x2: {x2}, y2: {y2}")
+
+                                cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 255), 5)
+
+                        self.draw_connections(frame, keypoints, self.FACE_CONNECTION)
 
 
 
 
                             # print(f"x: {x}, y: {y}")
+
+    def draw_connections(self, frame, keypoints, connections):
+        for connection in connections:
+            idx1, idx2 = connection  # Índices de los puntos a conectar
+
+            kp1 = next((v for k, v in keypoints.items() if v.get("index") == idx1 and k.startswith("kp")), None)
+            kp2 = next((v for k, v in keypoints.items() if v.get("index") == idx2 and k.startswith("kp")), None)
+
+            if kp1 and kp2:
+                x1 = int(kp1["x"] * frame.shape[1])
+                y1 = int(kp1["y"] * frame.shape[0])
+                x2 = int(kp2["x"] * frame.shape[1])
+                y2 = int(kp2["y"] * frame.shape[0])
+
+                cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+
 
 
                                 
@@ -294,5 +391,3 @@ if __name__ == "__main__":
         video_paths = [sys.argv[5], sys.argv[6], sys.argv[7]]
         vr.open_jsons()
         vr.reconstruct(video_paths)
-
-        

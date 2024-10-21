@@ -43,16 +43,3 @@ El estudio presenta un sistema de visión por computadora que evalúa la atenci�
 https://www.cv-foundation.org/openaccess/content_iccv_workshops_2013/W20/html/Kang_Various_Approaches_for_2013_ICCV_paper.html
 El estudio examina una variedad de métodos de monitoreo, incluyendo características visuales y no visuales del conductor, así como comportamientos relacionados con el rendimiento de la conducción. Además, se detallan métodos de detección de somnolencia basados en señales fisiológicas y características del vehículo, así como métodos para predecir comportamientos de conducción inseguros utilizando expresiones faciales y dinámica del automóvil.
 
-# Tabla
-
-| Número    | Video/foto | Qué usa                                  |
-|-----------|------------|------------------------------------------|
-| 1         |            |                                          |
-| 2         |            |                                          |
-| 3         |            |                                          |
-| 3         |            |                                          |
-| 4         |  foto      | aprendizaje automático y redes neuronales|
-| 5         |  -------   | ---------------------------------------  |
-| 6         |            |                                          |
-| 7         |  foto      | Algoritmo RANSAC                         |
-| 8         |            |                                          |
