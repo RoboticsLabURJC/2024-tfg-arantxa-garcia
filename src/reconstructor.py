@@ -7,7 +7,7 @@ import time
 import csv
 import os
 from helpers import relative, relativeT
-import cv2 
+import cv2
 from time import sleep
 
 class videoReconstructor:
@@ -28,7 +28,7 @@ class videoReconstructor:
             (0, 17), (13, 17), (17, 18), (18, 19), (19, 20)
         ]
 
-        self.FACE_CONNECTION = [ 
+        self.FACE_CONNECTION = [
             (17, 291), (17, 61), (0, 61), (0, 291),
             (61, 4), (4, 291), (4, 48), (4, 278),
             (291, 426), (61, 206), (61, 50), (291, 280),
@@ -38,14 +38,14 @@ class videoReconstructor:
             (145, 130), (145, 133), (374, 359), (374, 362),
             (130, 159), (130, 46), (359, 386), (359, 276),
             (133, 159), (362, 386), (46, 105), (276, 334),
-            (105, 107), (334, 336)          
+            (105, 107), (334, 336)
         ]
 
         self.POSE_CONNECTION = [
             (12, 24), (12, 11), (11, 23), (24, 23),
             (12, 14), (14, 16), (11, 13), (13, 15),
         ]
-        
+
     def get_files(self):
         try:
             if os.path.isdir(self.directory_path):
@@ -64,9 +64,9 @@ class videoReconstructor:
             print(f"Failed to decode JSON file {self.files[0]}. Trying alternative encoding...")
             with open(self.files[0], 'r', encoding='latin-1') as f:
                 data = json.load(f)
-        
+
         actions = {}
-        
+
         for frame_id, frame_data in data["openlabel"]["actions"].items():
             if "type" in frame_data:
                 for frame_interval in frame_data["frame_intervals"]:
@@ -88,9 +88,9 @@ class videoReconstructor:
             elif "body_camera" in frame_id:
                 self.pose_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
                 print("Pose sync: ", self.pose_sync)
-                    
+
         return actions
-    
+
     def open_jsons(self):
         try:
             with open(self.files[1], 'r', encoding='utf-8-sig') as f:
@@ -151,13 +151,13 @@ class videoReconstructor:
                         break
                 else:
                     # If it has not started, it pauses in black until the synchronization is complete
-                    frame = np.zeros((height, width, 3), dtype=np.uint8)  # Frame negro
+                    frame = np.zeros((height, width, 3), dtype=np.uint8)
 
                 black_frame = np.zeros((reduced_height, reduced_width, 3), dtype=np.uint8)
 
                 if cap_number == 0:  # First video (pose)
                     if frame_number >= self.pose_sync:
-                        if not video_started[cap_number]:  # Since frame 0
+                        if not video_started[cap_number]:
                             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                             video_started[cap_number] = True  # Marks the video as started
 
@@ -170,9 +170,9 @@ class videoReconstructor:
 
                 elif cap_number == 1:  # Second video (hands)
                     if frame_number >= self.hands_sync:
-                        if not video_started[cap_number]: 
+                        if not video_started[cap_number]:
                             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                            video_started[cap_number] = True 
+                            video_started[cap_number] = True
 
                         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         # print("llamando a paint_frame")
@@ -185,7 +185,7 @@ class videoReconstructor:
                     if frame_number >= self.face_sync:
                         if not video_started[cap_number]:
                             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                            video_started[cap_number] = True  
+                            video_started[cap_number] = True
 
                         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         self.paint_frame(frame, frame_number - self.face_sync, "face")
@@ -212,16 +212,17 @@ class videoReconstructor:
             if frame_number in self.actions:
                 actions = self.actions[frame_number]
                 for i, action in enumerate(actions):
-                    cv2.putText(combined_frame, action, (reduced_width + 10, reduced_height + 30 + i * 30), 
+                    cv2.putText(combined_frame, action, (reduced_width + 10, reduced_height + 30 + i * 30),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
             cv2.imshow('Combined Video', combined_frame)
             out.write(combined_frame)
 
-            if cv2.waitKey(1) & 0xFF == 27:  
+            if cv2.waitKey(1) & 0xFF == 27:
                 break
 
             frame_number += 1
+            
 
         for cap in caps:
             cap.release()
@@ -229,47 +230,27 @@ class videoReconstructor:
         cv2.destroyAllWindows()
 
     def paint_frame(self, frame, frame_number, json):
-        # print("Frame: ", frame_number)
+        print("Frame: ", frame_number)
         if json == "hands":
             data = self.data_hands
-            # print("Hands")
             if "iterations" in data:
                 for iterations in data["iterations"]:
                     if iterations["frame"] == frame_number:
-                        print("Frame: ", frame_number)
-                        # Supongamos que los keypoints están en 'iterations["left"]'
-                        keypoints = iterations["left"]  # Esto debe contener los kp1, kp2, ..., kp15, center
-                        for key, value in keypoints.items():
-                            x = int(value["x"] * frame.shape[1])
-                            y = int(value["y"] * frame.shape[0])
+                        for x, y, z in iterations["hands"]:
+                            x = int(x * frame.shape[1])
+                            y = int(y * frame.shape[0])
                             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
-                        # print("Left: ", keypoints)
-                        # sleep(100)
+                        for x, y in iterations["centers"]:
+                            x = int(x * frame.shape[1])
+                            y = int(y * frame.shape[0])
+                            cv2.circle(frame, (x, y), 5, (255, 0, 0), 30)
 
-                        self.draw_connections(frame, keypoints, self.HANDS_CONNECTION)
+                        hand_left = iterations["hands"][:21]
+                        hand_right = iterations["hands"][21:]
 
-                        keypoints_center = iterations["left"]["center"]
-                        x = int(keypoints_center["x"] * frame.shape[1])
-                        y = int(keypoints_center["y"] * frame.shape[0])
-                        cv2.circle(frame, (x, y), 20, (255, 0, 0), -1)
-
-                            # print(f"x: {x}, y: {y}")
-
-                        keypoints = iterations["right"]  # Esto debe contener los kp1, kp2, ..., kp15, center
-                        for key, value in keypoints.items():
-                            x = int(value["x"] * frame.shape[1])
-                            y = int(value["y"] * frame.shape[0])
-                            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-
-                        self.draw_connections(frame, keypoints, self.HANDS_CONNECTION)
-
-                        keypoints_center = iterations["right"]["center"]
-                        x = int(keypoints_center["x"] * frame.shape[1])
-                        y = int(keypoints_center["y"] * frame.shape[0])
-                        cv2.circle(frame, (x, y), 20, (255, 0, 0), -1)
-
-                            # print(f"x: {x}, y: {y}")
+                        self.draw_connections(frame, hand_left, self.HANDS_CONNECTION)
+                        self.draw_connections(frame, hand_right, self.HANDS_CONNECTION)
 
         elif json == "pose":
             data = self.data_pose
@@ -277,57 +258,18 @@ class videoReconstructor:
             if "iterations" in data:
                 for iterations in data["iterations"]:
                     if iterations["frame"] == frame_number:
-                        # Supongamos que los keypoints están en 'iterations["keypoints"]'
-                        # print(iterations)
-                        keypoints_trunk = iterations["trunk"]
-                        for key, value in keypoints_trunk.items():
-                            x = int(value["x"] * frame.shape[1])
-                            y = int(value["y"] * frame.shape[0])
+                        for x, y, z in iterations["pose"]:
+                            x = int(x * frame.shape[1])
+                            y = int(y * frame.shape[0])
                             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
-                        self.draw_connections(frame, keypoints_trunk, self.POSE_CONNECTION)
-                        
-                        keypoints_arm_left = iterations["arms"]["left"]
-                        for key, value in keypoints_arm_left.items():
-                            x = int(value["x"] * frame.shape[1])
-                            y = int(value["y"] * frame.shape[0])
-                            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+                        pose_data = iterations["pose"][:8]
+                        left_hand = iterations["pose"][8:29]
+                        right_hand = iterations["pose"][29:50]
 
-                        self.draw_connections(frame, keypoints_arm_left, self.POSE_CONNECTION)
-                        
-                        keypoints_arm_right = iterations["arms"]["right"]
-                        for key, value in keypoints_arm_right.items():
-                            x = int(value["x"] * frame.shape[1])
-                            y = int(value["y"] * frame.shape[0])
-                            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-
-                        self.draw_connections(frame, keypoints_arm_right, self.POSE_CONNECTION)
-                            
-                        keypoints_hand_left = iterations["hands"]["left"]
-                        for key, value in keypoints_hand_left.items():
-                            x = int(value["x"] * frame.shape[1])
-                            y = int(value["y"] * frame.shape[0])
-                            cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)
-
-                        self.draw_connections(frame, keypoints_hand_left, self.HANDS_CONNECTION)
-
-                        keypoints_hand_left_center = iterations["hands"]["left"]["center"]
-                        x = int(keypoints_hand_left_center["x"] * frame.shape[1])
-                        y = int(keypoints_hand_left_center["y"] * frame.shape[0])
-                        cv2.circle(frame, (x, y), 20, (255, 0, 0), -1)
-
-                        keypoints_hand_right = iterations["hands"]["right"]
-                        for key, value in keypoints_hand_right.items():
-                            x = int(value["x"] * frame.shape[1])
-                            y = int(value["y"] * frame.shape[0])
-                            cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)
-
-                        self.draw_connections(frame, keypoints_hand_right, self.HANDS_CONNECTION)
-
-                        keypoints_hand_right_center = iterations["hands"]["right"]["center"]
-                        x = int(keypoints_hand_right_center["x"] * frame.shape[1])
-                        y = int(keypoints_hand_right_center["y"] * frame.shape[0])
-                        cv2.circle(frame, (x, y), 20, (255, 0, 0), -1)
+                        self.draw_connections(frame, pose_data, self.POSE_CONNECTION)
+                        self.draw_connections(frame, left_hand, self.HANDS_CONNECTION)
+                        self.draw_connections(frame, right_hand, self.HANDS_CONNECTION)
 
         elif json == "face":
             data = self.data_face
@@ -335,53 +277,36 @@ class videoReconstructor:
             if "iterations" in data:
                 for iterations in data["iterations"]:
                     if iterations["frame"] == frame_number:
-                        keypoints = iterations["face"]
-                        for key, value in keypoints.items():
-                            if(key.startswith("kp")):
-                                x = int(value["x"] * frame.shape[1])
-                                y = int(value["y"] * frame.shape[0])
-                                cv2.circle(frame, (x, y), 5, (128, 255, 32), -1)
 
-                            else:
-                                # print("ALGUIEN?")
-                                p1 = keypoints["gaze"]["p1"]
-                                p2 = keypoints["gaze"]["p2"]
+                        for x, y, indx in iterations["face"]:
+                            x = int(x * frame.shape[1])
+                            y = int(y * frame.shape[0])
+                            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+                            # print("Face: ", x, y)
 
-                                x1 = int(p1["x"]) # * frame.shape[1])
-                                y1 = int(p1["y"]) # * frame.shape[0])
-                                x2 = int(p2["x"]) # * frame.shape[1])
-                                y2 = int(p2["y"]) # * frame.shape[0])
+                        for x, y in iterations["gaze"]:
+                            x = int(x * frame.shape[1])
+                            y = int(y * frame.shape[0])
+                            cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)
 
-                                # print(f"x1: {x1}, y1: {y1}, x2: {x2}, y2: {y2}")
-
-                                cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 255), 5)
-
-                        self.draw_connections(frame, keypoints, self.FACE_CONNECTION)
-
-
-
-
-                            # print(f"x: {x}, y: {y}")
+                        self.draw_connections(frame, iterations["face"], self.FACE_CONNECTION)
 
     def draw_connections(self, frame, keypoints, connections):
-        for connection in connections:
-            idx1, idx2 = connection  # Índices de los puntos a conectar
 
-            kp1 = next((v for k, v in keypoints.items() if v.get("index") == idx1 and k.startswith("kp")), None)
-            kp2 = next((v for k, v in keypoints.items() if v.get("index") == idx2 and k.startswith("kp")), None)
+        for idx1, idx2 in connections:
+            x1, y1, x2, y2 = None, None, None, None
+            for x, y, inx in keypoints:
+                if inx == idx1:
+                    x1 = int(x * frame.shape[1])
+                    y1 = int(y * frame.shape[0])
+                elif inx == idx2:
+                    x2 = int(x * frame.shape[1])
+                    y2 = int(y * frame.shape[0])
 
-            if kp1 and kp2:
-                x1 = int(kp1["x"] * frame.shape[1])
-                y1 = int(kp1["y"] * frame.shape[0])
-                x2 = int(kp2["x"] * frame.shape[1])
-                y2 = int(kp2["y"] * frame.shape[0])
+            if x1 and y1 and x2 and y2:
 
                 cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-
-
-
-                                
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
