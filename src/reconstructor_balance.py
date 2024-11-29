@@ -41,6 +41,7 @@ class balanceReconstructor:
         self.data_path = data_path
 
     def open_json(self):
+        print(f"Opening JSON file {self.balanced_json}")
         try:
             with open(self.balanced_json, 'r', encoding='utf-8-sig') as f:
                 self.data = json.load(f)
@@ -52,7 +53,7 @@ class balanceReconstructor:
     def reconstruct(self):
         self.open_json()
 
-        for action in self.data['actions']:
+        for action in self.data:
             json_session = action['json'].split('/')[1]
 
             frame = action['frame']
@@ -83,9 +84,7 @@ class balanceReconstructor:
             print("Error al leer uno de los frames")
             return
         
-        # self.paint_frame(action['hands'], "hands", frame1)
-        # self.paint_frame(action['pose'], "pose", frame2)
-        # self.paint_frame(action['face'], "face", frame3)
+        print("Action: ", action['type'])
 
         self.paint_frame(frame1, action['frame'], "hands", action)
         self.paint_frame(frame2, action['frame'], "pose", action)
@@ -117,13 +116,8 @@ class balanceReconstructor:
         cap.release()
 
     def paint_frame(self, frame, frame_number, json, data):
-        print("Frame: ", frame_number)
+        # print("Frame: ", frame_number)
         if json == "hands":
-            # # print("Hands")
-            # if "iterations" in data:
-            #     for iterations in data["iterations"]:
-            #         if iterations["frame"] == frame_number:
-            #             # print(iterations["hands"])
             for x, y, z in data['hands']['hands']:
                 x = int(x * frame.shape[1])
                 y = int(y * frame.shape[0])
@@ -137,7 +131,6 @@ class balanceReconstructor:
             hand_right = data['hands']["hands"][:21]
             hand_left = data['hands']["hands"][21:]
 
-            # self.draw_connections(frame, iterations["hands"], self.HANDS_CONNECTION)
             self.draw_connections(frame, hand_right, self.HANDS_CONNECTION)
             self.draw_connections(frame, hand_left, self.HANDS_CONNECTION)
 
@@ -146,9 +139,6 @@ class balanceReconstructor:
                 x = int(x * frame.shape[1])
                 y = int(y * frame.shape[0])
                 cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-
-                        # print("Pose: ", iterations["pose"])
-                        # print("len: ", len(iterations["pose"]))
 
                 pose_data = data['pose']["pose"][:8]
                 right_hand = data['pose']["pose"][8:29]
@@ -190,7 +180,7 @@ class balanceReconstructor:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Falta el archivo JSON.")
+        print("python reconstructor_balance.py <json_file> <data_path>")
     else:
         vr = balanceReconstructor(sys.argv[1], sys.argv[2])
         vr.reconstruct()

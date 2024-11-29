@@ -7,19 +7,20 @@ import cv2
 import time
 import matplotlib.pyplot as plt
 
-class Balancer:
+class Balancer_plot:
     def __init__(self):
         self.total_frames_per_action = {}
         self.global_frame_stats = {
-            'hands_using_wheel/both': {'total': 0, 'valid': 0},
-            'hands_using_wheel/only_left': {'total': 0, 'valid': 0},
-            'hands_using_wheel/only_right': {'total': 0, 'valid': 0},
-            'driver_actions/radio': {'total': 0, 'valid': 0},
-            'driver_actions/drinking': {'total': 0, 'valid': 0},
-            'driver_actions/reach_side': {'total': 0, 'valid': 0},
-            'driver_actions/phonecall_right': {'total': 0, 'valid': 0},
-            'driver_actions/texting_left': {'total': 0, 'valid': 0}
+            'hands_using_wheel/both': {},
+            'hands_using_wheel/only_left': {},
+            'hands_using_wheel/only_right': {},
+            'driver_actions/radio': {},
+            'driver_actions/drinking': {},
+            'driver_actions/reach_side': {},
+            'driver_actions/phonecall_right': {},
+            'driver_actions/texting_left': {}
         }
+
 
     def create_directories(self, base_path):
         actions = ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right', 'driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side', 'driver_actions/phonecall_right', 'driver_actions/texting_left']
@@ -51,15 +52,20 @@ class Balancer:
         
         return True
 
-    def balance_frames(self, json_file_groups, frame_limit, base_output_path):
+    def balance_frames(self, json_file_groups):
+        combined_balanced_df = pd.DataFrame()
         global_frame_count = {action_type: 0 for action_type in ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right', 'driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side', 'driver_actions/phonecall_right', 'driver_actions/texting_left']}
-        action_data_by_type = {action_type: [] for action_type in global_frame_count.keys()}
 
         for json_file_set in json_file_groups:
+
             photos_to_save = []
             frame_seen = []
 
             subdir_path = json_file_set['subdirectory']
+
+            if subdir_path not in self.global_frame_stats:
+                for action in global_frame_count.keys():
+                    self.global_frame_stats[action][subdir_path] = {'total': 0, 'valid': 0}
 
             frames_file_path = next((f for f in json_file_set['files'] if os.path.basename(f) == 'frames.json'), None)
             hands_file_path = next((f for f in json_file_set['files'] if os.path.basename(f) == 'hands.json'), None)
@@ -84,6 +90,7 @@ class Balancer:
                 data = json.load(file)
 
             actions = data['openlabel']['actions']
+            action_data = []
 
             for frame_id, frame_data in data["openlabel"]["streams"].items():
                 if "face_camera" in frame_id:
@@ -93,9 +100,11 @@ class Balancer:
                 elif "body_camera" in frame_id:
                     pose_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
 
+            print(f"Sync ORIGINAL: {hands_sync}, {face_sync}, {pose_sync}")
+
             for key, action in actions.items():
                 action_type = action['type']
-                if action_type in global_frame_count and global_frame_count[action_type] < frame_limit:
+                if action_type in global_frame_count:
                     for interval in action['frame_intervals']:
                         frame_start = interval['frame_start']
                         frame_end = interval['frame_end']
@@ -104,8 +113,7 @@ class Balancer:
                             if (i >= len(data_hands['iterations']) or i >= len(data_face['iterations']) or i >= len(data_pose['iterations'])):
                                 continue
 
-                            if global_frame_count[action_type] >= frame_limit:
-                                break
+                            self.global_frame_stats[action_type][subdir_path]['total'] += 1
 
                             face_frame = i - face_sync
                             hands_frame = i - hands_sync
@@ -114,8 +122,6 @@ class Balancer:
                             if face_frame < 0 or hands_frame < 0 or pose_frame < 0:
                                 print(f"Frame fuera de rango: {i}, sync: {sync}")
                                 continue
-
-                            self.global_frame_stats[action_type]['total'] += 1
 
                             d_hands = data_hands['iterations'][hands_frame]['hands']
                             d_face = data_face['iterations'][face_frame]['face']
@@ -146,56 +152,52 @@ class Balancer:
                                 (action_type == 'driver_actions/texting_left' and
                                 self.check_hand(left_hand_pose, pose_body))
                             ):
+                                if i in frame_seen:
+                                    continue
 
-                                action_data_by_type[action_type].append({
-                                    'type': action_type,
-                                    'frame': i,
-                                    'hands': data_hands['iterations'][hands_frame],
-                                    'face': data_face['iterations'][face_frame],
-                                    'pose': data_pose['iterations'][pose_frame],
-                                    'json': subdir_path,
-                                    'sync_hands': hands_sync,
-                                    'sync_face': face_sync,
-                                    'sync_pose': pose_sync
-                                })
+                                self.global_frame_stats[action_type][subdir_path]['valid'] += 1
+                                frame_seen.append(i)
                                 global_frame_count[action_type] += 1
-                                photos_to_save.append((i, action_type))
-                                self.global_frame_stats[action_type]['valid'] += 1
+
+            print("Total frames per action: ", global_frame_count)
+
+            df = pd.DataFrame(action_data)
+            combined_balanced_df = pd.concat([combined_balanced_df, df], ignore_index=True)
 
             sync = [hands_sync, face_sync, pose_sync]
 
-            self.save_images(photos_to_save, subdir_path, base_output_path, pose_video_path, hands_video_path, face_video_path, sync)
+        balanced_json = combined_balanced_df.to_dict(orient='records')
 
-        print("Guardando JSONs por acción...")
         print("Global frame stats: ", self.global_frame_stats)
 
-        actions = list(self.global_frame_stats.keys())
-        totals = [self.global_frame_stats[action]['total'] for action in actions]
-        valids = [self.global_frame_stats[action]['valid'] for action in actions]
+        action_totals = {}
+        for action, sessions in self.global_frame_stats.items():
+            total_valid = sum(session['valid'] for session in sessions.values())
+            total_total = sum(session['total'] for session in sessions.values())
+            action_totals[action] = {'valid': total_valid, 'total': total_total}
 
-        x = np.arange(len(actions))  
-        bar_width = 0.4          
-        plt.figure(figsize=(12, 6))
+        actions = list(action_totals.keys())
+        valid_counts = [action_totals[action]['valid'] for action in actions]
+        total_counts = [action_totals[action]['total'] for action in actions]
 
-        plt.bar(x, totals, width=bar_width, color='skyblue', label='Total')
-        plt.bar(x, valids, width=bar_width, color='green', label='Valid', alpha=0.7)
+        x = range(len(actions))
+        width = 0.35
 
+        plt.bar(x, total_counts, width, label='Total', color='skyblue', alpha=0.7)
+        plt.bar(x, valid_counts, width, label='Valid', color='green', alpha=0.7, bottom=[0]*len(x))
+
+        # Configuración del gráfico
         plt.xticks(x, actions, rotation=45, ha='right')
         plt.xlabel('Acción')
-        plt.ylabel('Número de frames')
-        plt.title('Frames Totales y Válidos por Acción')
+        plt.ylabel('Cantidad')
+        plt.title('Totales y válidos por acción')
         plt.legend()
 
+        # Mostrar el gráfico
         plt.tight_layout()
         plt.show()
 
-        for action_type, data in action_data_by_type.items():
-            action_subdir = os.path.join(base_output_path, action_type)
-            output_file = os.path.join(action_subdir, f"{action_type.replace('/', '_')}.json")
-            with open(output_file, 'w') as output_json:
-                json.dump(data, output_json, indent=4)
 
-        print("Procesamiento completado.")
 
     def get_json_files(self, directory_path):
         json_file_groups = []
@@ -272,16 +274,15 @@ class Balancer:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Uso: python balancer.py dir path frame_limit")
+        print("Uso: python balancer.py dir")
     else:
         directory_path = sys.argv[1]
-        frame_limit = int(sys.argv[3])
-        base_output_path = sys.argv[2]
+        # output_file = sys.argv[2]
+        base_output_path = "balance_prueba"
         
-        balancer = Balancer()
+        balancer = Balancer_plot()
         balancer.create_directories(base_output_path)
         json_file_groups = balancer.get_json_files(directory_path)
-        balancer.balance_frames(json_file_groups, frame_limit, base_output_path)
-
+        balancer.balance_frames(json_file_groups)
 
 

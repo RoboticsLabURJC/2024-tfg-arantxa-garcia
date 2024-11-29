@@ -22,10 +22,9 @@ class VideoProcessor:
 
         self.mp_pose = mp.solutions.pose
         self.pose = self.mp_pose.Pose()
-        self.mp_hands = mp.solutions.hands # con uno vale para ambos videos ?????????????????????????????????????????????????????????
-        # self.hands = self.mp_hands.Hands()
-        self.hands_pose = mp.solutions.hands.Hands()  # Para el video de pose
-        self.hands_only = mp.solutions.hands.Hands()  # Para el video de hands
+        self.mp_hands = mp.solutions.hands 
+        self.hands_pose = mp.solutions.hands.Hands() 
+        self.hands_only = mp.solutions.hands.Hands() 
         self.mp_face_mesh = mp.solutions.face_mesh
         # self.face_mesh = self.mp_face_mesh.FaceMesh()
         self.face_mesh = self.mp_face_mesh.FaceMesh(refine_landmarks=True, max_num_faces=1,
@@ -86,15 +85,31 @@ class VideoProcessor:
                     cv2.line(frame, start_point, end_point, color, 2)
 
     def update_pose_json(self, results_pose, results_hands):
-        self.data_pose['pose'] = [[0, 0, idx] for idx in range(50)]
+        self.data_pose['pose'] = [[0, 0, idx] for idx in range(52)]
 
         counter = 0
 
         if results_pose.pose_landmarks:
             for idx, landmark in enumerate(results_pose.pose_landmarks.landmark):
-                if idx in [11, 12, 23, 24, 13, 15, 14, 16]:
-                    self.data_pose['pose'][counter] = [landmark.x, landmark.y, idx]
-                    counter += 1
+                # if idx in [11, 12, 23, 24, 13, 15, 14, 16]:
+                #     self.data_pose['pose'][counter] = [landmark.x, landmark.y, idx]
+                #     counter += 1
+                if idx == 11:
+                    self.data_pose['pose'][0] = [landmark.x, landmark.y, idx]
+                elif idx == 12:
+                    self.data_pose['pose'][1] = [landmark.x, landmark.y, idx]
+                elif idx == 13:
+                    self.data_pose['pose'][2] = [landmark.x, landmark.y, idx]
+                elif idx == 14:
+                    self.data_pose['pose'][3] = [landmark.x, landmark.y, idx]
+                elif idx == 15:
+                    self.data_pose['pose'][4] = [landmark.x, landmark.y, idx]
+                elif idx == 16:
+                    self.data_pose['pose'][5] = [landmark.x, landmark.y, idx]
+                elif idx == 23:
+                    self.data_pose['pose'][6] = [landmark.x, landmark.y, idx]
+                elif idx == 24:
+                    self.data_pose['pose'][7] = [landmark.x, landmark.y, idx]
 
         left_hand_landmarks = None
         right_hand_landmarks = None
@@ -111,9 +126,15 @@ class VideoProcessor:
             for idx, landmark in enumerate(left_hand_landmarks.landmark):
                 self.data_pose['pose'][idx + 8] = [landmark.x, landmark.y, idx]
 
+            left_center_x, left_center_y = self.calculate_center_of_mass(left_hand_landmarks.landmark)
+            self.data_pose['pose'][50] = [left_center_x, left_center_y, 50]
+
         if right_hand_landmarks:
             for idx, landmark in enumerate(right_hand_landmarks.landmark):
                 self.data_pose['pose'][idx + 21 + 8] = [landmark.x, landmark.y, idx]
+
+            right_center_x, right_center_y = self.calculate_center_of_mass(right_hand_landmarks.landmark)
+            self.data_pose['pose'][51] = [right_center_x, right_center_y, 51]
 
         new_iteration = {
             'frame': len(self.data_pose['iterations']),
@@ -121,8 +142,6 @@ class VideoProcessor:
         }
 
         self.data_pose['iterations'].append(new_iteration)
-
-
 
     def process_hands(self, frame, results_hands):
         if results_hands.multi_hand_landmarks:
@@ -168,7 +187,7 @@ class VideoProcessor:
 
     def process_face(self, frame, results_face):
         if results_face.multi_face_landmarks:
-            p1, p2 = gaze.gaze(frame, results_face.multi_face_landmarks[0]) 
+            # p1, p2 = gaze.gaze(frame, results_face.multi_face_landmarks[0]) 
 
             for face_landmarks in results_face.multi_face_landmarks:
                 self.mp_drawing.draw_landmarks(
@@ -180,33 +199,88 @@ class VideoProcessor:
                 )
 
     def update_face_json(self, results_face, frame):
-        self.data_face['face'] = [[0.0, 0.0, i] for i in range(27)]  
+        self.data_face['face'] = [[0.0, 0.0, i] for i in range(28)]  
         self.data_face['gaze'] = [[0.0, 0.0] for _ in range(2)]
 
         if results_face.multi_face_landmarks:
-            self.data_face['face'] = [[0.0, 0.0, i] for i in range(27)]
+            self.data_face['face'] = [[0.0, 0.0, i] for i in range(28)]
             self.data_face['gaze'] = [[0.0, 0.0] for _ in range(2)]
 
             p1, p2 = gaze.gaze(frame, results_face.multi_face_landmarks[0])
             self.data_face['gaze'][0] = [p1[0], p1[1]] 
             self.data_face['gaze'][1] = [p2[0], p2[1]]  
 
-            combined_landmarks = []
+            counter = 0
 
             for face_idx, face_landmarks in enumerate(results_face.multi_face_landmarks):
                 for idx, landmark in enumerate(face_landmarks.landmark):
-                    if idx in {17, 61, 291, 0, 206, 426, 50, 48, 4, 278, 280, 145, 122, 351, 374, 130, 133, 362, 359, 159, 386, 46, 276, 105, 107, 336, 25}:
-                        combined_landmarks.append([landmark.x, landmark.y, idx])
+                    # if idx in {17, 61, 291, 0, 206, 426, 50, 48, 4, 278, 280, 145, 122, 351, 374, 130, 133, 362, 359, 159, 386, 46, 276, 105, 107, 336, 334}:
+                    #     # combined_landmarks.append([landmark.x, landmark.y, idx])
+                    #     self.data_face['face'][counter] = [landmark.x, landmark.y, idx]
+                    #     counter += 1
+                    if idx == 0:
+                        self.data_face['face'][0] = [landmark.x, landmark.y, idx]
+                    elif idx == 4:
+                        self.data_face['face'][1] = [landmark.x, landmark.y, idx]
+                    elif idx == 17:
+                        self.data_face['face'][2] = [landmark.x, landmark.y, idx]
+                    elif idx == 46:
+                        self.data_face['face'][3] = [landmark.x, landmark.y, idx]
+                    elif idx == 48:
+                        self.data_face['face'][4] = [landmark.x, landmark.y, idx]
+                    elif idx == 50:
+                        self.data_face['face'][5] = [landmark.x, landmark.y, idx]
+                    elif idx == 61:
+                        self.data_face['face'][6] = [landmark.x, landmark.y, idx]
+                    elif idx == 105:
+                        self.data_face['face'][7] = [landmark.x, landmark.y, idx]
+                    elif idx == 107:
+                        self.data_face['face'][8] = [landmark.x, landmark.y, idx]
+                    elif idx == 122:
+                        self.data_face['face'][9] = [landmark.x, landmark.y, idx]
+                    elif idx == 130:
+                        self.data_face['face'][10] = [landmark.x, landmark.y, idx]
+                    elif idx == 133:
+                        self.data_face['face'][11] = [landmark.x, landmark.y, idx]
+                    elif idx == 145:
+                        self.data_face['face'][12] = [landmark.x, landmark.y, idx]
+                    elif idx == 159:
+                        self.data_face['face'][13] = [landmark.x, landmark.y, idx]
+                    elif idx == 206:
+                        self.data_face['face'][14] = [landmark.x, landmark.y, idx]
+                    elif idx == 276:
+                        self.data_face['face'][15] = [landmark.x, landmark.y, idx]
+                    elif idx == 278:
+                        self.data_face['face'][16] = [landmark.x, landmark.y, idx]
+                    elif idx == 280:
+                        self.data_face['face'][17] = [landmark.x, landmark.y, idx]
+                    elif idx == 291:
+                        self.data_face['face'][18] = [landmark.x, landmark.y, idx]
+                    elif idx == 334:
+                        self.data_face['face'][19] = [landmark.x, landmark.y, idx]
+                    elif idx == 336:
+                        self.data_face['face'][20] = [landmark.x, landmark.y, idx]
+                    elif idx == 351:
+                        self.data_face['face'][21] = [landmark.x, landmark.y, idx]
+                    elif idx == 359:
+                        self.data_face['face'][22] = [landmark.x, landmark.y, idx]
+                    elif idx == 362:
+                        self.data_face['face'][23] = [landmark.x, landmark.y, idx]
+                    elif idx == 374:
+                        self.data_face['face'][24] = [landmark.x, landmark.y, idx]
+                    elif idx == 386:
+                        self.data_face['face'][25] = [landmark.x, landmark.y, idx]
+                    elif idx == 426:
+                        self.data_face['face'][26] = [landmark.x, landmark.y, idx]
 
-            new_iteration = {
-                'frame': len(self.data_face['iterations']),
-                'face': combined_landmarks,  
-                'gaze': copy.deepcopy(self.data_face['gaze'])
-            }
 
-            self.data_face['iterations'].append(new_iteration)
+        new_iteration = {
+            'frame': len(self.data_face['iterations']),
+            'face': copy.deepcopy(self.data_face['face']), 
+            'gaze': copy.deepcopy(self.data_face['gaze'])
+        }
 
-
+        self.data_face['iterations'].append(new_iteration)
 
     def process_video(self): 
         cap = cv2.VideoCapture(self.video_path)
@@ -397,8 +471,10 @@ class VideoProcessor:
         out = cv2.VideoWriter('combined_video.mp4', fourcc, fps, output_size)
 
         frame_number = 0
+        frame_count = [0, 0, 0]
         video_started = [False, False, False]  # Flags to track when each video starts
         end_video = False
+        prev_frame = [None, None, None]
 
         while all([cap.isOpened() for cap in caps]):
 
@@ -411,6 +487,22 @@ class VideoProcessor:
                     if not success:
                         end_video = True
                         break
+
+                    current_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)  # Frame actual según OpenCV
+
+                    if current_frame != frame_count[cap_number] + 1:
+                        print(f"Frame perdido: Esperado {frame_count[cap_number] + 1}, leído {current_frame}")
+
+                    if prev_frame[cap_number] is not None:
+                        diff = np.abs(frame.astype("int") - prev_frame[cap_number].astype("int"))
+                        avg_diff = np.mean(diff)
+
+                        if avg_diff < 5: 
+                            print("Frame duplicado detectado")
+                        elif avg_diff > 200:  
+                            print("Frame corrupto detectado")
+
+                    frame_count[cap_number] = current_frame
                 else:
                     # If it has not started, it pauses in black until the synchronization is complete
                     frame = np.zeros((height, width, 3), dtype=np.uint8)  # Frame negro
@@ -456,10 +548,9 @@ class VideoProcessor:
 
                         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         results_face = self.face_mesh.process(frame_rgb)
-                        # self.process_face_reduced(frame, results_face)
                         self.process_face(frame, results_face)
 
-                        self.update_face_json(results_face, frame)
+                        self.update_face_json(results_face, frame_rgb)
                     else:
                         frame = black_frame  # Black till synchronization of face_sync
 
@@ -471,6 +562,7 @@ class VideoProcessor:
             if(frame_number % 500 == 0):
                 # Guarda todos los JSON cada 400 frames
                 # print("Guardando JSON...")
+                print(frame_number)
                 self.save_json_files() # GUARDO LA PRIMERA POSICION 400 VECES
 
             frame_number += 1

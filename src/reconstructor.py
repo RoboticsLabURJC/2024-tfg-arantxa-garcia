@@ -230,7 +230,7 @@ class videoReconstructor:
         cv2.destroyAllWindows()
 
     def paint_frame(self, frame, frame_number, json):
-        print("Frame: ", frame_number)
+        # print("Frame: ", frame_number)
         if json == "hands":
             data = self.data_hands
             if "iterations" in data:
@@ -266,12 +266,18 @@ class videoReconstructor:
                         pose_data = iterations["pose"][:8]
                         left_hand = iterations["pose"][8:29]
                         right_hand = iterations["pose"][29:50]
+                        left_center = iterations["pose"][50]
+                        right_center = iterations["pose"][51]
+
+                        cv2.circle(frame, (int(left_center[0] * frame.shape[1]), int(left_center[1] * frame.shape[0])), 5, (255, 0, 0), 30)
+                        cv2.circle(frame, (int(right_center[0] * frame.shape[1]), int(right_center[1] * frame.shape[0])), 5, (255, 0, 0), 30)
 
                         self.draw_connections(frame, pose_data, self.POSE_CONNECTION)
                         self.draw_connections(frame, left_hand, self.HANDS_CONNECTION)
                         self.draw_connections(frame, right_hand, self.HANDS_CONNECTION)
 
         elif json == "face":
+            print("Frame: ", frame_number)
             data = self.data_face
             # print("Face")
             if "iterations" in data:
@@ -284,10 +290,13 @@ class videoReconstructor:
                             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
                             # print("Face: ", x, y)
 
-                        for x, y in iterations["gaze"]:
-                            x = int(x * frame.shape[1])
-                            y = int(y * frame.shape[0])
-                            cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)
+                        x, y = iterations["gaze"][0]
+                        x2, y2 = iterations["gaze"][1]
+
+                        x, y = int(x), int(y)
+                        x2, y2 = int(x2), int(y2)
+                        
+                        cv2.line(frame, (x, y), (x2, y2), (0, 0, 255), 7)
 
                         self.draw_connections(frame, iterations["face"], self.FACE_CONNECTION)
 
