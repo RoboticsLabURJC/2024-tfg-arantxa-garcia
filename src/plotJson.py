@@ -1,3 +1,11 @@
+"""
+
+Le tienes que dar como argumento el directorio donde están los jsons.
+
+Este script se encarga de leer los jsons de las acciones y dibujar gráficos con los datos obtenidos.
+
+"""
+
 import os
 import sys
 import json

@@ -1,3 +1,12 @@
+"""
+
+Uso: python videohands.py <json_general> <video_path_body> <video_path_hands> <video_path_face> [--load]
+
+--load: Crea 3 jsons con los datos de las cámaras y los guarda en el directorio actual.
+--combine: Combina los 3 videos en uno solo, mostrando cada cámara en un cuadrante de la pantalla.
+
+"""
+
 import cv2
 import mediapipe as mp
 import sys

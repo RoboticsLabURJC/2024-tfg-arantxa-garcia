@@ -1,3 +1,14 @@
+"""
+
+python reconstructor_balance.py <json_file> <data_path>
+
+json_file: JSON con los datos balanceados
+data_path: Ruta donde se encuentran los frames de los videos
+
+Imprimirá un video con los frames de las manos, la cara y la pose de cada acción balanceada.
+
+"""
+
 import cv2
 import sys
 import numpy as np

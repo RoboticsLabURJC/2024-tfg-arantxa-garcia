@@ -1,3 +1,9 @@
+"""
+
+Función gaze para importar en otros scripts de python. Esta función se encarga de dibujar la dirección de la mirada en un frame de video.
+
+"""
+
 import cv2
 import numpy as np
 from helpers import relative, relativeT

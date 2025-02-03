@@ -1,3 +1,19 @@
+"""
+
+Uso: python reconstructor.py <json_original> <json_hands> <json_pose> <json_face> <video_body> <video_hands> <video_face>
+
+Json_original: Archivo JSON original con las acciones y sincronización de cámaras.
+Json_hands: Archivo JSON con los datos de las manos.
+Json_pose: Archivo JSON con los datos de la pose.
+Json_face: Archivo JSON con los datos de la cara.
+Video_body: Video con la cámara del pose.
+Video_hands: Video con la cámara de las manos.
+Video_face: Video con la cámara de la cara.
+
+Imprimirá un video con los frames de las manos, la cara y la pose de cada acción pasados por MediaPipe.
+
+"""
+
 import cv2
 import mediapipe as mp
 import sys

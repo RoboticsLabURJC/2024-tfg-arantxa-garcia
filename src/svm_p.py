@@ -1,3 +1,13 @@
+"""
+
+Este script se encarga de entrenar un modelo SVM con los datos balanceados y de reconstruir
+los videos prediciendo las acciones de cada frame. En este script luego predice sobre los datos
+de una sesion con datos desbalanceados.
+
+NO NECESITA ARGUMENTOS
+
+"""
+
 import sys
 import json
 import numpy as np
@@ -12,24 +22,24 @@ from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import multilabel_confusion_matrix
+import os
+import time
 
 class SVM:
-    def __init__(self, json_both, json_onlyleft, json_onlyright, json_radio, json_drinking, json_reachside, json_phonecallright):
+    def __init__(self, json_both, json_onlyleft, json_onlyright): #, json_radio, json_drinking, json_reachside):
         self.both_j = json_both
         self.onlyleft_j = json_onlyleft
         self.onlyright_j = json_onlyright
-        self.radio_j = json_radio
-        self.drinking_j = json_drinking
-        self.reachside_j = json_reachside
-        self.phonecallright_j = json_phonecallright
+        # self.radio_j = json_radio
+        # self.drinking_j = json_drinking
+        # self.reachside_j = json_reachside
 
         self.both = []
         self.onlyleft = []
         self.onlyright = []
-        self.radio = []
-        self.drinking = []
-        self.reachside = []
-        self.phonecallright = []
+        # self.radio = []
+        # self.drinking = []
+        # self.reachside = []
 
         self.rows = []
 
@@ -59,37 +69,30 @@ class SVM:
             with open(self.onlyright_j, 'r', encoding='latin-1') as f:
                 self.onlyright = json.load(f)
 
-        try:
-            with open(self.radio_j, 'r', encoding='utf-8-sig') as f:
-                self.radio = json.load(f)
-        except UnicodeDecodeError:
-            print(f"Failed to decode JSON file {self.radio_j}. Trying alternative encoding...")
-            with open(self.radio_j, 'r', encoding='latin-1') as f:
-                self.radio = json.load(f)
+        # try:
+        #     with open(self.radio_j, 'r', encoding='utf-8-sig') as f:
+        #         self.radio = json.load(f)
+        # except UnicodeDecodeError:
+        #     print(f"Failed to decode JSON file {self.radio_j}. Trying alternative encoding...")
+        #     with open(self.radio_j, 'r', encoding='latin-1') as f:
+        #         self.radio = json.load(f)
 
-        try:
-            with open(self.drinking_j, 'r', encoding='utf-8-sig') as f:
-                self.drinking = json.load(f)
-        except UnicodeDecodeError:
-            print(f"Failed to decode JSON file {self.drinking_j}. Trying alternative encoding...")
-            with open(self.drinking_j, 'r', encoding='latin-1') as f:
-                self.drinking = json.load(f)
+        # try:
+        #     with open(self.drinking_j, 'r', encoding='utf-8-sig') as f:
+        #         self.drinking = json.load(f)
+        # except UnicodeDecodeError:
+        #     print(f"Failed to decode JSON file {self.drinking_j}. Trying alternative encoding...")
+        #     with open(self.drinking_j, 'r', encoding='latin-1') as f:
+        #         self.drinking = json.load(f)
 
-        try:
-            with open(self.reachside_j, 'r', encoding='utf-8-sig') as f:
-                self.reachside = json.load(f)
-        except UnicodeDecodeError:
-            print(f"Failed to decode JSON file {self.reachside_j}. Trying alternative encoding...")
-            with open(self.reachside_j, 'r', encoding='latin-1') as f:
-                self.reachside = json.load(f)
+        # try:
+        #     with open(self.reachside_j, 'r', encoding='utf-8-sig') as f:
+        #         self.reachside = json.load(f)
+        # except UnicodeDecodeError:
+        #     print(f"Failed to decode JSON file {self.reachside_j}. Trying alternative encoding...")
+        #     with open(self.reachside_j, 'r', encoding='latin-1') as f:
+        #         self.reachside = json.load(f)
 
-        try:
-            with open(self.phonecallright_j, 'r', encoding='utf-8-sig') as f:
-                self.phonecallright = json.load(f)
-        except UnicodeDecodeError:
-            print(f"Failed to decode JSON file {self.phonecallright_j}. Trying alternative encoding...")
-            with open(self.phonecallright_j, 'r', encoding='latin-1') as f:
-                self.phonecallright = json.load(f)
 
     def prepare_data(self, data):
 
@@ -273,6 +276,14 @@ class videoReconstructor:
         frame_number = 0
         video_started = [False, False, False]  # Flags to track when each video starts
 
+        init_time = time.time()
+        total_time = 0
+        last_prediction = None
+        consecutive_count = 0
+        previous_prediction_s = ""
+
+        needed_consecutive = 15
+
         while all([cap.isOpened() for cap in caps]):
 
             prediction_s = ""
@@ -302,28 +313,38 @@ class videoReconstructor:
                         # print(frame)
                         features = self.prepare_prediction(self.data_pose["iterations"][frame_number - self.pose_sync])
                         # print(features)
-                        prediction = multilabel_model.predict([list(features.values())])
-                        Y_pred_prob = multilabel_model.predict_proba([list(features.values())])
+                        prediction = model.predict([list(features.values())])
+                        Y_pred_prob = model.predict_proba([list(features.values())])
                         Y_pred_prob_percent = (Y_pred_prob * 100).round(2) 
                         np.set_printoptions(suppress=True, precision=2)
-                        print(prediction)
+                        # print(prediction)
 
-                        for n in range(len(prediction[0])):
-                            if prediction[0][n] == 1:
-                                if n == 0:
-                                    prediction_s = prediction_s + "hands_using_wheel/both "
-                                elif n == 1:
-                                    prediction_s = prediction_s + "hands_using_wheel/only_left "
-                                elif n == 2:
-                                    prediction_s = prediction_s + "hands_using_wheel/only_right "
-                                elif n == 3:
-                                    prediction_s = prediction_s + "driver_actions/radio "
-                                elif n == 4:
-                                    prediction_s = prediction_s + "driving_actions/drinking "
-                                elif n == 5:
-                                    prediction_s = prediction_s + "driver_actions/reach Side "
-                                elif n == 6:
-                                    prediction_s = prediction_s + "driver_actions/phone Call Right "
+                        if prediction == last_prediction:
+                            consecutive_count += 1
+                        else:
+                            consecutive_count = 1
+                            last_prediction = prediction
+
+                        # for n in range(len(prediction[0])):
+                        # if prediction == 1:
+                        if consecutive_count >= needed_consecutive:
+                            if prediction == 0:
+                                prediction_s = "hands_using_wheel/both "
+                            elif prediction == 1:
+                                prediction_s = "hands_using_wheel/only_left "
+                            elif prediction == 2:
+                                prediction_s = "hands_using_wheel/only_right "
+                            elif prediction == 3:
+                                prediction_s = "driver_actions/radio "
+                            elif prediction == 4:
+                                prediction_s = "driving_actions/drinking "
+                            elif prediction == 5:
+                                prediction_s = "driver_actions/reach Side "
+                            previous_prediction_s = prediction_s 
+                        else:
+                            prediction_s = previous_prediction_s
+
+                        # last_prediction = prediction
 
                         self.paint_frame(frame, frame_number - self.pose_sync, "pose")
                         frame = cv2.resize(frame, (reduced_width, reduced_height))
@@ -386,7 +407,9 @@ class videoReconstructor:
                 if prediction_s == "":
                     self.counter_total += 1
 
-                valid_actions = [act for act in actions if act.startswith("driver_actions") or act.startswith("hands_using_wheel")]
+                # valid_actions = [act for act in actions if act.startswith("driver_actions") or act.startswith("hands_using_wheel")]
+                valid_actions = [act for act in actions if act.startswith("hands_using_wheel")]
+
 
                 y_offset = 30
                 start_y = height // 2 + y_offset 
@@ -406,6 +429,10 @@ class videoReconstructor:
                     )
 
                 prediction_start_y = start_y + len(valid_actions) * line_height 
+                
+                # if prediction_s == "hands_using_wheel/both ":
+                #     prediction_s = "driver_actions/safe_drive"
+                
                 cv2.putText(
                     combined_frame,
                     prediction_s,
@@ -430,7 +457,7 @@ class videoReconstructor:
                         cv2.LINE_AA
                     )
                     
-                    probability_classes = ["Both", "Left", "Right", "Radio", "Drinking", "Reachside", "Phonecallr"]
+                    probability_classes = ["Both", "Left", "Right"] #, "Radio", "Drinking", "Reachside"]
                     for j, class_name in enumerate(probability_classes):
                         prob_text = f"{class_name}: {Y_pred_prob_percent[0][j]}%"
                         cv2.putText(
@@ -458,6 +485,11 @@ class videoReconstructor:
                     cv2.LINE_AA
                 )
 
+                frame_time = time.time() - init_time
+                total_time += frame_time
+                init_time = time.time()
+
+                print(f"Frame {frame_number} - Tiempo de procesamiento: {frame_time:.2f} s")
 
             cv2.imshow('Combined Video', combined_frame)
             out.write(combined_frame)
@@ -559,24 +591,26 @@ class videoReconstructor:
 
                 cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-json_files = [  '/home/arantxa/universidad/TFG/src/balanced_data/hands_using_wheel_both.json', 
-                '/home/arantxa/universidad/TFG/src/balanced_data/hands_using_wheel_only_left.json', 
-                '/home/arantxa/universidad/TFG/src/balanced_data/hands_using_wheel_only_right.json',
-                '/home/arantxa/universidad/TFG/src/balanced_data/driver_actions_radio.json', 
-                '/home/arantxa/universidad/TFG/src/balanced_data/driver_actions_drinking.json', 
-                '/home/arantxa/universidad/TFG/src/balanced_data/driver_actions_reach_side.json', 
-                '/home/arantxa/universidad/TFG/src/balanced_data/driver_actions_phonecall_right.json']
+json_files_1 = [  '/home/arantxa/universidad/TFG/src/data_train/hands_using_wheel_both.json', 
+                '/home/arantxa/universidad/TFG/src/data_train/hands_using_wheel_only_left.json', 
+                '/home/arantxa/universidad/TFG/src/data_train/hands_using_wheel_only_right.json']
+                # '/home/arantxa/universidad/TFG/src/bal_data_5_frames/driver_actions_radio.json', 
+                # '/home/arantxa/universidad/TFG/src/bal_data_5_frames/driver_actions_drinking.json', 
+                # '/home/arantxa/universidad/TFG/src/bal_data_5_frames/driver_actions_reach_side.json']
+
+json_files_2 = [  '/home/arantxa/universidad/TFG/src/data_test/hands_using_wheel_both.json', 
+                '/home/arantxa/universidad/TFG/src/data_test/hands_using_wheel_only_left.json', 
+                '/home/arantxa/universidad/TFG/src/data_test/hands_using_wheel_only_right.json']
 
         
-SVM_performer = SVM(*json_files)
+SVM_performer = SVM(*json_files_1)
 SVM_performer.open_jsons()
 SVM_performer.prepare_data(SVM_performer.both)
 SVM_performer.prepare_data(SVM_performer.onlyleft)
 SVM_performer.prepare_data(SVM_performer.onlyright)
-SVM_performer.prepare_data(SVM_performer.radio)
-SVM_performer.prepare_data(SVM_performer.drinking)
-SVM_performer.prepare_data(SVM_performer.reachside)
-SVM_performer.prepare_data(SVM_performer.phonecallright)
+# SVM_performer.prepare_data(SVM_performer.radio)
+# SVM_performer.prepare_data(SVM_performer.drinking)
+# SVM_performer.prepare_data(SVM_performer.reachside)
 
 dataset = pd.DataFrame(SVM_performer.rows)
 print(dataset)
@@ -584,47 +618,83 @@ print(dataset)
 dataset['label'] = dataset['label'].replace("hands_using_wheel/both", 0)
 dataset['label'] = dataset['label'].replace("hands_using_wheel/only_left", 1)
 dataset['label'] = dataset['label'].replace("hands_using_wheel/only_right", 2)
-dataset['label'] = dataset['label'].replace("driver_actions/radio", 3)
-dataset['label'] = dataset['label'].replace("driver_actions/drinking", 4)
-dataset['label'] = dataset['label'].replace("driver_actions/reach_side", 5)
-dataset['label'] = dataset['label'].replace("driver_actions/phonecall_right", 6)
+# dataset['label'] = dataset['label'].replace("driver_actions/radio", 3)
+# dataset['label'] = dataset['label'].replace("driver_actions/drinking", 4)
+# dataset['label'] = dataset['label'].replace("driver_actions/reach_side", 5)
 
-dataset_multilabel = pd.get_dummies(dataset['label'], prefix='class').astype(int)
+SVM_performer_test = SVM(*json_files_1)
+SVM_performer_test.open_jsons()
+SVM_performer_test.prepare_data(SVM_performer_test.both)
+SVM_performer_test.prepare_data(SVM_performer_test.onlyleft)
+SVM_performer_test.prepare_data(SVM_performer_test.onlyright)
+# SVM_performer_test.prepare_data(SVM_performer_test.radio)
+# SVM_performer_test.prepare_data(SVM_performer_test.drinking)
+# SVM_performer_test.prepare_data(SVM_performer_test.reachside)
 
-dataset = pd.concat([dataset, dataset_multilabel], axis=1)
+dataset_test = pd.DataFrame(SVM_performer_test.rows)
+print(dataset_test)
+
+dataset_test['label'] = dataset_test['label'].replace("hands_using_wheel/both", 0)
+dataset_test['label'] = dataset_test['label'].replace("hands_using_wheel/only_left", 1)
+dataset_test['label'] = dataset_test['label'].replace("hands_using_wheel/only_right", 2)
+
+# dataset_multilabel = pd.get_dummies(dataset['label'], prefix='class').astype(int)
+
+# dataset = pd.concat([dataset, dataset_multilabel], axis=1)
+# print(dataset)
+
+# print(dataset[['class_3', 'class_4', 'class_5', 'center_left_x', 'center_left_y']].head())
+
+# -------------------------------------------------------------------------------------------------
+# --------------------- aqui se junta reach side drinking y radio con only left -------------------
+
+# c = 0
+# for index, row in dataset.iterrows():
+#     for class_col in ['class_3', 'class_4', 'class_5']:
+#         if row[class_col] == 1 and row['center_left_x'] != 0 and row['center_left_y'] != 0:
+#             c += 1
+#             dataset.loc[index, 'class_1'] = 1  # Modificar el dataset directamente
+
+# print(c)
+
+# class_columns = [f'class_{i}' for i in range(3)]
+
+# dataset['multilabel'] = dataset[class_columns].apply(lambda row: row.tolist(), axis=1)
+
+# dataset = dataset.drop(columns=class_columns)
+# dataset = dataset.drop(columns=['label'])
+
 print(dataset)
 
-num_classes = dataset['label'].max() + 1
+# -------------------------------------------------------------------------------------------------
 
-dataset['multilabel'] = dataset['label'].apply(lambda x: [1 if i == x else 0 for i in range(num_classes)])
+# cols_to_group = dataset.columns.difference(["multilabel"])
+# grouped = dataset.groupby(list(cols_to_group))["multilabel"].apply(
+#     lambda x: [int(any(values)) for values in zip(*x)]
+# ).reset_index()
 
-dataset = dataset.drop(columns=['label'])
-dataset = dataset.drop(columns=['class_0'])
-dataset = dataset.drop(columns=['class_1'])
-dataset = dataset.drop(columns=['class_2'])
-dataset = dataset.drop(columns=['class_3'])
-dataset = dataset.drop(columns=['class_4'])
-dataset = dataset.drop(columns=['class_5'])
-dataset = dataset.drop(columns=['class_6'])
+# dataset = grouped
 
-print(dataset)
-
-cols_to_group = dataset.columns.difference(["multilabel"])
-grouped = dataset.groupby(list(cols_to_group))["multilabel"].apply(
-    lambda x: [int(any(values)) for values in zip(*x)]
-).reset_index()
-
-dataset = grouped
+# for _, row in grouped.iterrows():
+#     multilabel = row["multilabel"]
+#     if sum(multilabel) > 1:  
+#         print(f"Fila agrupada: {row.to_dict()}")
 
 # -----------------------------------------------------
 # salia que había 44 iguales (o sea 22 menos)
 # -----------------------------------------------------
 
-
 X = dataset.iloc[:, :-1] # todo menos etiquetas
 Y = dataset.iloc[:, -1] # etiquetas
 
-X_train, X_test, Y_train, Y_test = train_test_split(X.values, Y, test_size=0.25, random_state=1, stratify=Y) 
+X_test = dataset_test.iloc[:, :-1] # todo menos etiquetas
+Y_test = dataset_test.iloc[:, -1] # etiquetas
+
+# X_train, X_test, Y_train, Y_test = train_test_split(X.values, Y, test_size=0.15, random_state=1, stratify=Y) 
+
+X_train = X
+Y_train = Y
+
 
 train_class_counts = pd.Series(Y_train).value_counts()
 
@@ -639,73 +709,134 @@ print(test_class_counts)
 Y_train_bin = np.array(list(Y_train)) 
 Y_test_bin = np.array(list(Y_test)) 
 
-print("Formato de Y_train_bin:", Y_train_bin.shape)
+# print("Formato de Y_train_bin:", Y_train_bin.shape)
 
-multilabel_model = OneVsRestClassifier(SVC(kernel="linear", probability=True,random_state=1))
-multilabel_model.fit(X_train, Y_train_bin)
+# multilabel_model = OneVsRestClassifier(SVC(kernel="linear", random_state=1, probability=True))
+# multilabel_model.fit(X_train, Y_train_bin)
 
-Y_pred_multilabel = multilabel_model.predict(X_test)
-Y_train_pred = multilabel_model .predict(X_train)
+print("Info sobre X_train e Y_train:")
+print("X train shape: ", X_train.shape)
+print("Y train shape: ", Y_train.shape)
+print("X train dtype: ", X_train.dtype)
+print("Y train dtype: ", Y_train.dtype)
+print("X train type: ", type(X_train))
+print("Y train type: ", type(Y_train)) 
+print("X train:")
+print(X_train) 
+print("Y train:")
+print(Y_train)
+print("Y train bin:")
+print(Y_train_bin)
+print("Y train bin shape:")
+print(Y_train_bin.shape)
+
+model = SVC(kernel="linear", random_state=1, probability=True)
+model.fit(X_train, Y_train)
+
+Y_pred_multilabel = model.predict(X_test)
+Y_train_pred = model.predict(X_train)
 
 print("Predicciones multilabel (primeras 5 filas):\n", Y_pred_multilabel[:5])
 
+from sklearn.metrics import accuracy_score
 
 accuracy = accuracy_score(Y_train_bin, Y_train_pred)
-print("Precisión (entrenamiento):", accuracy)
+print("Accuracy (entrenamiento):", accuracy)
 
 accuracy = accuracy_score(Y_test_bin, Y_pred_multilabel)
-print("Precisión:", accuracy)
+print("Accuracy:", accuracy)
 
-# etiquetas de las clases
-class_labels = ['Both', 'Left', 'Right', 'Radio', 'Drinking', 'Reachside', 'Phonecallr']
+from sklearn.metrics import confusion_matrix
 
-n_labels = Y_train_bin.shape[1] # total de etiquetas
+confusion_matrix_train = confusion_matrix(Y_train_bin, Y_train_pred)
+confusion_matrix_test = confusion_matrix(Y_test_bin, Y_pred_multilabel)
 
-# Inicializar la matriz de confusión global
-global_conf_matrix = np.zeros((n_labels, n_labels))
+# confusion_matrix_train = confusion_matrix_train / confusion_matrix_train.sum(axis=1)[:, np.newaxis]
+# confusion_matrix_test = confusion_matrix_test / confusion_matrix_test.sum(axis=1)[:, np.newaxis]
 
-for i in range(Y_train_bin.shape[0]): 
-    for j in range(n_labels): 
-        if Y_train_bin[i, j] == 1: # Si la etiqueta real es 1
-            for k in range(n_labels):  # Ver en qué clase se predijo
-                global_conf_matrix[j, k] += Y_train_pred[i, k]  
+confusion_matrix_train = confusion_matrix_train.astype('float') / confusion_matrix_train.sum(axis=1)[:, np.newaxis]
+confusion_matrix_test = confusion_matrix_test.astype('float') / confusion_matrix_test.sum(axis=1)[:, np.newaxis]
 
-row_sums = global_conf_matrix.sum(axis=1, keepdims=True) 
-global_conf_matrix_normalized = global_conf_matrix / row_sums
-
-# Visualizar la matriz de confusión global normalizada
-plt.figure(figsize=(10, 7))
-sns.heatmap(global_conf_matrix_normalized.T, annot=True, fmt=".2f", cmap="Blues",
-            xticklabels=class_labels,  # Usar las etiquetas personalizadas
-            yticklabels=class_labels)  
-plt.xlabel("Etiqueta Real")
-plt.ylabel("Predicción")
-plt.title("Matriz de Confusión de train")
+plt.figure(figsize=(8, 6))
+sns.heatmap(confusion_matrix_train, annot=True, fmt=".2f", cmap="Blues", xticklabels=["Clase 0", "Clase 1", "Clase 2"], yticklabels=["Clase 0", "Clase 1", "Clase 2"])
+plt.xlabel('Predicción')
+plt.ylabel('Etiqueta Real')
+plt.title('Matriz de Confusión train')
 plt.show()
 
-# Inicializar la matriz de confusión global
-global_conf_matrix = np.zeros((n_labels, n_labels))
-
-for i in range(Y_test_bin.shape[0]): 
-    for j in range(n_labels): 
-        if Y_test_bin[i, j] == 1: # Si la etiqueta real es 1
-            for k in range(n_labels):  # Ver en qué clase se predijo
-                global_conf_matrix[j, k] += Y_pred_multilabel[i, k]  
-
-row_sums = global_conf_matrix.sum(axis=1, keepdims=True) 
-global_conf_matrix_normalized = global_conf_matrix / row_sums
-
-# Visualizar la matriz de confusión global normalizada
-plt.figure(figsize=(10, 7))
-sns.heatmap(global_conf_matrix_normalized.T, annot=True, fmt=".2f", cmap="Blues",
-            xticklabels=class_labels,  # Usar las etiquetas personalizadas
-            yticklabels=class_labels)  
-plt.xlabel("Etiqueta Real")
-plt.ylabel("Predicción")
-plt.title("Matriz de Confusión de test")
+plt.figure(figsize=(8, 6))
+sns.heatmap(confusion_matrix_test, annot=True, fmt=".2f", cmap="Blues", xticklabels=["Clase 0", "Clase 1", "Clase 2"], yticklabels=["Clase 0", "Clase 1", "Clase 2"])
+plt.xlabel('Predicción')
+plt.ylabel('Etiqueta Real')
+plt.title('Matriz de Confusión test')
 plt.show()
 
-sys.argv = [sys.argv[0], '/home/arantxa/universidad/TFG/src/balanced_data/driver_actions_drinking.json', '/home/arantxa/universidad/TFG/src/balanced_jsons/']
+# class_labels = ['Both', 'Left', 'Right', 'Radio', 'Drinking', 'Reachside']
+
+# n_labels = Y_train_bin.shape[1]
+# global_conf_matrix = np.zeros((n_labels, n_labels))
+
+# no_predictions_train = 0
+# yes_predictions_train = 0
+
+# for i in range(Y_train_bin.shape[0]): 
+#     for j in range(n_labels): 
+#         if Y_train_bin[i, j] == 1:
+#             for k in range(n_labels):  
+#                 global_conf_matrix[j, k] += Y_train_pred[i, k]  
+
+#             if np.sum(Y_train_pred[i]) == 0:
+#                 no_predictions_train += 1
+#             else:
+#                 yes_predictions_train += 1
+
+# print(f"Número de ejemplos sin predicciones: {no_predictions_train}")
+# print(f"Número de ejemplos con predicciones: {yes_predictions_train}")
+
+# row_sums = global_conf_matrix.sum(axis=1, keepdims=True) 
+# global_conf_matrix_normalized = global_conf_matrix / row_sums
+
+# plt.figure(figsize=(10, 7))
+# sns.heatmap(global_conf_matrix_normalized.T, annot=True, fmt=".2f", cmap="Blues",
+#             xticklabels=class_labels,  
+#             yticklabels=class_labels)  
+# plt.xlabel("Etiqueta Real")
+# plt.ylabel("Predicción")
+# plt.title("Matriz de Confusión de train")
+# plt.show()
+
+# global_conf_matrix = np.zeros((n_labels, n_labels))
+
+# no_predictions_test = 0
+# yes_predictions_test = 0
+
+# for i in range(Y_test_bin.shape[0]): 
+#     for j in range(n_labels): 
+#         if Y_test_bin[i, j] == 1: 
+#             for k in range(n_labels): 
+#                 global_conf_matrix[j, k] += Y_pred_multilabel[i, k]  
+            
+#             if np.sum(Y_pred_multilabel[i]) == 0:
+#                 no_predictions_test += 1
+#             else:
+#                 yes_predictions_test += 1
+
+# print(f"Número de ejemplos sin predicciones: {no_predictions_test}")
+# print(f"Número de ejemplos con predicciones: {yes_predictions_test}")
+            
+# row_sums = global_conf_matrix.sum(axis=1, keepdims=True) 
+# global_conf_matrix_normalized = global_conf_matrix / row_sums
+
+# plt.figure(figsize=(10, 7))
+# sns.heatmap(global_conf_matrix_normalized.T, annot=True, fmt=".2f", cmap="Blues",
+#             xticklabels=class_labels,  # Usar las etiquetas personalizadas
+#             yticklabels=class_labels)  
+# plt.xlabel("Etiqueta Real")
+# plt.ylabel("Predicción")
+# plt.title("Matriz de Confusión de test")
+# plt.show()
+
+# sys.argv = [sys.argv[0], '/home/arantxa/universidad/TFG/src/balanced_data/driver_actions_drinking.json', '/home/arantxa/universidad/TFG/src/balanced_jsons/']
 
 sys.argv = [sys.argv[0], '/home/arantxa/universidad/TFG/src/j_pruebas/1_s1/frames.json',
             '/home/arantxa/universidad/TFG/src/j_pruebas/1_s1/hands.json',
