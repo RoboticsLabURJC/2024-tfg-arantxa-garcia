@@ -15,6 +15,158 @@ import numpy as np
 import json
 import os
 import time
+import random
+import pandas as pd
+import matplotlib.pyplot as plt
+import math
+
+def tf(to_tf, original, flag):
+        #scale = original[0] * original[1]
+        if(flag == 0):
+            return (original[0]) #* scale
+        elif(flag == 1):
+            return (original[1]) #* scale
+        
+        return
+
+        return 0
+
+def calc_ang(first_pnt, sec_pnt, middle_pnt):
+    first_pnt = np.array(first_pnt)
+    sec_pnt = np.array(sec_pnt)
+    middle_pnt = np.array(middle_pnt)
+
+    u = first_pnt - middle_pnt
+    v = sec_pnt - middle_pnt
+
+    dot_product = np.dot(u, v)
+
+    norm_u = np.linalg.norm(u)
+    norm_v = np.linalg.norm(v)
+
+    angle_radians = np.arccos(dot_product / (norm_u * norm_v))
+
+    angle_degrees = np.degrees(angle_radians)
+
+    return angle_degrees
+
+def convert_to_multilabel(df):
+    label_mapping = {
+        "hands_using_wheel/both": "both_hands",
+        "hands_using_wheel/only_left": "left_hand",
+        "hands_using_wheel/only_right": "right_hand",
+        "driver_actions/radio": "radio",
+        "driver_actions/drinking": "drinking",
+        "driver_actions/reach_side": "reach_side"
+    }
+    df['label'] = df['label'].map(label_mapping)  # Mapear nombres de etiquetas
+    multilabels = pd.get_dummies(df['label'])  # Convertir a columnas binarias
+    df = pd.concat([df, multilabels], axis=1)  # Unir al dataset
+    df.drop(columns=['label'], inplace=True)  # Eliminar columna original
+    return df
+
+def generate_random_number(prin_num, rang_low=0.015, rang_high=0.015):
+    return random.uniform(prin_num[0] - rang_low, prin_num[0] + rang_high), random.uniform(prin_num[1] - rang_low, prin_num[1] + rang_high), prin_num[2]
+
+def add_gaussian_noise(value, mean=0, std=0.01):
+    return value[0] + np.random.normal(mean, std), value[1] + np.random.normal(mean, std), value[2]
+
+def generate_random_angle(angle_range=7):
+    return math.radians(random.uniform(-angle_range, angle_range))
+
+def rotate_point_around(x, y, cx, cy, angle_rad):
+    x -= cx
+    y -= cy
+
+    new_x = x * math.cos(angle_rad) - y * math.sin(angle_rad)
+    new_y = x * math.sin(angle_rad) + y * math.cos(angle_rad)
+
+    return new_x + cx, new_y + cy
+
+def prepare_data(item, image):
+
+    right_elbow = item['pose']['pose'][1]
+
+    rotation = generate_random_angle()
+
+    features = [
+        item['pose']['pose'][50], item['pose']['pose'][51], 
+        item['pose']['pose'][0], item['pose']['pose'][1], 
+        item['pose']['pose'][2], item['pose']['pose'][3], 
+        item['pose']['pose'][4], item['pose']['pose'][5]
+    ]
+
+    features_tras = [
+        rotate_point_around(p[0], p[1], right_elbow[0], right_elbow[1], rotation) + (p[2],)
+        for p in features
+    ]
+
+    features_gauss = [add_gaussian_noise(item['pose']['pose'][50]), add_gaussian_noise(item['pose']['pose'][51]), add_gaussian_noise(item['pose']['pose'][0]), add_gaussian_noise(item['pose']['pose'][1]), add_gaussian_noise(item['pose']['pose'][2]), add_gaussian_noise(item['pose']['pose'][3]), add_gaussian_noise(item['pose']['pose'][4]), add_gaussian_noise(item['pose']['pose'][5])]
+
+    plot_features_on_image(image, features, features_tras, features_gauss)
+
+def draw_connections(frame, keypoints, connections, color):
+    """Dibuja las conexiones entre los puntos clave proporcionados."""
+    
+    for idx1, idx2 in connections:
+        x1, y1, x2, y2 = None, None, None, None
+        
+        for x, y, z in keypoints:
+            if z == idx1:  
+                x1 = int(x * frame.shape[1])
+                y1 = int(y * frame.shape[0])
+            elif z == idx2:  
+                x2 = int(x * frame.shape[1])
+                y2 = int(y * frame.shape[0])
+
+        if x1 is not None and y1 is not None and x2 is not None and y2 is not None:
+            cv2.line(frame, (x1, y1), (x2, y2), color, 2)  
+            
+def plot_features_on_image(image, features, features_tras, features_gauss):
+    """Carga la imagen y dibuja los puntos de cada conjunto de datos con leyenda y conexiones."""
+    if image.shape[2] == 3:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  
+    else:
+        print("Formato de imagen desconocido")
+
+    for x, y, z in features:
+        x = int(x * image.shape[1])
+        y = int(y * image.shape[0])
+        if 0 <= x < image.shape[1] and 0 <= y < image.shape[0]:
+            cv2.circle(image, (x, y), 10, (0, 255, 0), -1)  # Verde
+
+    for x, y, z in features_tras:
+        x = int(x * image.shape[1])
+        y = int(y * image.shape[0])
+        if 0 <= x < image.shape[1] and 0 <= y < image.shape[0]:
+            cv2.circle(image, (x, y), 10, (0, 0, 255), -1)  # Rojo
+
+    for x, y, z in features_gauss:
+        x = int(x * image.shape[1])
+        y = int(y * image.shape[0])
+        if 0 <= x < image.shape[1] and 0 <= y < image.shape[0]:
+            cv2.circle(image, (x, y), 10, (255, 0, 0), -1)  # Azul
+
+    connections = [
+            (12, 24), (12, 11), (11, 23), (24, 23),
+            (12, 14), (14, 16), (11, 13), (13, 15)
+        ]
+
+    draw_connections(image, features, connections, (0, 255, 0))
+    draw_connections(image, features_tras, connections, (0, 0, 255))
+    draw_connections(image, features_gauss, connections, (255, 0, 0))
+
+    plt.figure(figsize=(10, 10))
+    plt.imshow(image)
+    plt.axis('off')
+    
+    plt.scatter([], [], c='green', label='Original', s=100)
+    plt.scatter([], [], c='blue', label='Rotacion', s=100)
+    plt.scatter([], [], c='red', label='Ruido Gauss', s=100)
+
+    plt.legend()  
+    plt.show()
+
 
 class balanceReconstructor:
     def __init__(self, json_file, data_path):
@@ -81,10 +233,9 @@ class balanceReconstructor:
             hands_im = cv2.imread(path_hands)
             pose_im = cv2.imread(path_pose)
 
-            self.show_collage(face_im, hands_im, pose_im, action)
+            prepare_data(action, pose_im)
 
-
-
+            # self.show_collage(face_im, hands_im, pose_im, action)
 
     def show_collage(self, face_im, hands_im, pose_im, action):
         frame1 = hands_im
@@ -128,6 +279,7 @@ class balanceReconstructor:
 
     def paint_frame(self, frame, frame_number, json, data):
         # print("Frame: ", frame_number)
+        print(data)
         if json == "hands":
             for x, y, z in data['hands']['hands']:
                 x = int(x * frame.shape[1])

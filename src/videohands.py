@@ -2,8 +2,8 @@
 
 Uso: python videohands.py <json_general> <video_path_body> <video_path_hands> <video_path_face> [--load]
 
---load: Crea 3 jsons con los datos de las cámaras y los guarda en el directorio actual.
---combine: Combina los 3 videos en uno solo, mostrando cada cámara en un cuadrante de la pantalla.
+--load: Crea 3 jsons con los datos de las camaras y los guarda en el directorio actual.
+--combine: Combina los 3 videos en uno solo, mostrando cada camara en un cuadrante de la pantalla.
 
 """
 
@@ -12,13 +12,11 @@ import mediapipe as mp
 import sys
 import numpy as np
 import json
-import time
-import csv
 import os
 from helpers import relative, relativeT
-import cv2 
 import copy
 import gaze
+from phone_model import PhoneDetector
 
 
 class VideoProcessor:
@@ -94,7 +92,16 @@ class VideoProcessor:
                     cv2.line(frame, start_point, end_point, color, 2)
 
     def update_pose_json(self, results_pose, results_hands):
-        self.data_pose['pose'] = [[0, 0, idx] for idx in range(52)]
+        # Índices en self.data_pose['pose']
+        # -----------------------------------
+        #  0 -  7   -> Puntos clave del cuerpo (hombros, codos, muñecas, caderas)
+        #  8 - 28   -> Puntos de la mano izquierda
+        #  29 - 49  -> Puntos de la mano derecha
+        #    50     -> Centro de masa de la mano izquierda
+        #    51     -> Centro de masa de la mano derecha
+
+
+        self.data_pose['pose'] = [[0, 0, idx] for idx in range(53)]
 
         counter = 0
 
@@ -131,19 +138,19 @@ class VideoProcessor:
                 else:
                     right_hand_landmarks = hand_landmarks
 
-        if left_hand_landmarks:
+        if left_hand_landmarks: # ESTO NO FUNCIONA BIEN CHECKEAR EL INDICE
             for idx, landmark in enumerate(left_hand_landmarks.landmark):
-                self.data_pose['pose'][idx + 8] = [landmark.x, landmark.y, idx]
+                self.data_pose['pose'][idx + 21 + 8] = [landmark.x, landmark.y, idx]
 
             left_center_x, left_center_y = self.calculate_center_of_mass(left_hand_landmarks.landmark)
-            self.data_pose['pose'][50] = [left_center_x, left_center_y, 50]
+            self.data_pose['pose'][51] = [left_center_x, left_center_y, 50]
 
         if right_hand_landmarks:
             for idx, landmark in enumerate(right_hand_landmarks.landmark):
-                self.data_pose['pose'][idx + 21 + 8] = [landmark.x, landmark.y, idx]
+                self.data_pose['pose'][idx + 8] = [landmark.x, landmark.y, idx]
 
             right_center_x, right_center_y = self.calculate_center_of_mass(right_hand_landmarks.landmark)
-            self.data_pose['pose'][51] = [right_center_x, right_center_y, 51]
+            self.data_pose['pose'][50] = [right_center_x, right_center_y, 51]
 
         new_iteration = {
             'frame': len(self.data_pose['iterations']),
@@ -176,16 +183,16 @@ class VideoProcessor:
 
             for hand_idx, hand_landmarks in enumerate(results_hands.multi_hand_landmarks):
                 handedness = results_hands.multi_handedness[hand_idx].classification[0].label
-                hand_offset = 0 if handedness == 'Left' else 21 # para que los puntos de la mano derecha empiecen en el 21  
+                hand_offset = 21 if handedness == 'Left' else 0 # para que los puntos de la mano derecha empiecen en el 21  
 
                 for idx, landmark in enumerate(hand_landmarks.landmark):
                     self.data_hands['hands'][hand_offset + idx] = [landmark.x, landmark.y, idx]
 
                 center_x, center_y = self.calculate_center_of_mass(hand_landmarks.landmark)
                 if handedness == 'Left':
-                    self.data_hands['centers'][0] = [center_x, center_y]
-                else:
                     self.data_hands['centers'][1] = [center_x, center_y]
+                else:
+                    self.data_hands['centers'][0] = [center_x, center_y]
 
         new_iteration = {
             'frame': len(self.data_hands['iterations']),
@@ -418,8 +425,7 @@ class VideoProcessor:
 
                         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         results_face = self.face_mesh.process(frame_rgb)
-                        self.process_face(frame, results_face) # hacer que se vean ambas !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                        # self.process_face_reduced(frame)
+                        self.process_face(frame, results_face) 
                         frame = cv2.resize(frame, (reduced_width, reduced_height))
                     else:
                         frame = black_frame  # Black till synchronization of face_sync
@@ -459,7 +465,7 @@ class VideoProcessor:
         out.release()
         cv2.destroyAllWindows()
 
-    def load_json(self, video_paths):
+    def load_json(self, video_paths, phone_detector):
         self.create_json()
 
         caps = [cv2.VideoCapture(video_path) for video_path in video_paths]
@@ -529,8 +535,9 @@ class VideoProcessor:
                         results_hands = self.hands_pose.process(frame_rgb)
                         self.process_pose(frame, results_pose)
                         self.process_hands(frame, results_hands)
+                        is_phone = phone_detector.detect(frame_rgb)
 
-                        self.update_pose_json(results_pose, results_hands)
+                        self.update_pose_json(results_pose, results_hands, is_phone)
                     else:
                         frame = black_frame  # Black till synchronization of pose_sync
 
@@ -568,11 +575,11 @@ class VideoProcessor:
             if cv2.waitKey(1) & 0xFF == 27:
                 break
 
-            if(frame_number % 500 == 0):
-                # Guarda todos los JSON cada 400 frames
-                # print("Guardando JSON...")
-                print(frame_number)
-                self.save_json_files() # GUARDO LA PRIMERA POSICION 400 VECES
+            # if(frame_number % 500 == 0):
+            #     # Guarda todos los JSON cada 400 frames
+            #     # print("Guardando JSON...")
+            #     print(frame_number)
+            #     self.save_json_files() # GUARDO LA PRIMERA POSICION 400 VECES
 
             frame_number += 1
             print(frame_number)
@@ -613,28 +620,33 @@ class VideoProcessor:
                 data = json.load(f)
         
         actions = {}
-        
-        for frame_id, frame_data in data["openlabel"]["actions"].items():
-            if "type" in frame_data:
-                for frame_interval in frame_data["frame_intervals"]:
-                    frame_start = frame_interval["frame_start"]
-                    frame_end = frame_interval["frame_end"]
-                    for frame in range(frame_start, frame_end + 1):
-                        if frame not in actions:
-                            actions[frame] = []
-                        if frame_data["type"] not in actions[frame]:
-                            actions[frame].append(frame_data["type"])
 
-        for frame_id, frame_data in data["openlabel"]["streams"].items():
-            if "face_camera" in frame_id:
-                self.face_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
-                print("Face sync: ", self.face_sync)
-            elif "hands_camera" in frame_id:
-                self.hands_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
-                print("Hands sync: ", self.hands_sync)
-            elif "body_camera" in frame_id:
-                self.pose_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
-                print("Pose sync: ", self.pose_sync)
+        key = "openlabel" if "openlabel" in data else "vcd" if "vcd" in data else None
+
+        if key and "actions" in data[key]:
+            for frame_id, frame_data in data[key]["actions"].items():
+                if "type" in frame_data:
+                    for frame_interval in frame_data["frame_intervals"]:
+                        frame_start = frame_interval["frame_start"]
+                        frame_end = frame_interval["frame_end"]
+                        for frame in range(frame_start, frame_end + 1):
+                            if frame not in actions:
+                                actions[frame] = []
+                            if frame_data["type"] not in actions[frame]:
+                                actions[frame].append(frame_data["type"])
+
+        if key and "streams" in data[key]:
+            for frame_id, frame_data in data[key]["streams"].items():
+                if "face_camera" in frame_id:
+                    self.face_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
+                    print("Face sync: ", self.face_sync)
+                elif "hands_camera" in frame_id:
+                    self.hands_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
+                    print("Hands sync: ", self.hands_sync)
+                elif "body_camera" in frame_id:
+                    self.pose_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
+                    print("Pose sync: ", self.pose_sync)
+
                     
         return actions
 
@@ -696,7 +708,8 @@ if __name__ == "__main__":
         load_json = "--load" in sys.argv
 
         processor = VideoProcessor(video_path, json_path, draw_pose=draw_pose, draw_hands=draw_hands, draw_face=draw_face)
-        
+        phone_detector = PhoneDetector()
+
         if combine_videos:
             if len(sys.argv) < 6:
                 print("Faltan rutas de videos para combinar.")
@@ -705,6 +718,6 @@ if __name__ == "__main__":
                 processor.combine_videos(video_paths)
         elif load_json:
             video_paths = sys.argv[2:5]
-            processor.load_json(video_paths)
+            processor.load_json(video_paths, phone_detector)
         else:
             processor.process_video()

@@ -26,6 +26,11 @@ from helpers import relative, relativeT
 import cv2
 from time import sleep
 
+left_only = 0
+left_and_drinking = 0
+left_and_radio = 0
+left_and_reaching = 0
+
 class videoReconstructor:
     def __init__(self, json_1, json_2, json_3, json_4, video_1, video_2, video_3):
         self.files = [json_1, json_2, json_3, json_4]
@@ -227,6 +232,8 @@ class videoReconstructor:
             # Blank space for actions
             if frame_number in self.actions:
                 actions = self.actions[frame_number]
+                print(actions)
+                print("-------------------------------------------")
                 for i, action in enumerate(actions):
                     cv2.putText(combined_frame, action, (reduced_width + 10, reduced_height + 30 + i * 30),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
@@ -246,29 +253,29 @@ class videoReconstructor:
         cv2.destroyAllWindows()
 
     def paint_frame(self, frame, frame_number, json):
-        # print("Frame: ", frame_number)
+        print("Frame: ", frame_number)
         if json == "hands":
             data = self.data_hands
             if "iterations" in data:
                 for iterations in data["iterations"]:
                     if iterations["frame"] == frame_number:
-                        for x, y, z in iterations["hands"]:
-                            x = int(x * frame.shape[1])
-                            y = int(y * frame.shape[0])
-                            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+                        # for x, y, z in iterations["hands"]:
+                        #     x = int(x * frame.shape[1])
+                        #     y = int(y * frame.shape[0])
+                        #     cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
-                        for x, y in iterations["centers"]:
-                            x = int(x * frame.shape[1])
-                            y = int(y * frame.shape[0])
-                            cv2.circle(frame, (x, y), 5, (255, 0, 0), 30)
+                        # for x, y in iterations["centers"]:
+                        #     x = int(x * frame.shape[1])
+                        #     y = int(y * frame.shape[0])
+                        #     cv2.circle(frame, (x, y), 5, (255, 0, 0), 30)
 
-                        hand_left = iterations["hands"][:21]
+                        # hand_left = iterations["hands"][:21]
                         hand_right = iterations["hands"][21:]
 
-                        self.draw_connections(frame, hand_left, self.HANDS_CONNECTION)
+                        # self.draw_connections(frame, hand_left, self.HANDS_CONNECTION)
                         self.draw_connections(frame, hand_right, self.HANDS_CONNECTION)
 
-        elif json == "pose":
+        if json == "pose":
             data = self.data_pose
             # print("Pose")
             if "iterations" in data:
@@ -277,7 +284,7 @@ class videoReconstructor:
                         for x, y, z in iterations["pose"]:
                             x = int(x * frame.shape[1])
                             y = int(y * frame.shape[0])
-                            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+                            # cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
                         pose_data = iterations["pose"][:8]
                         left_hand = iterations["pose"][8:29]
@@ -285,36 +292,36 @@ class videoReconstructor:
                         left_center = iterations["pose"][50]
                         right_center = iterations["pose"][51]
 
-                        cv2.circle(frame, (int(left_center[0] * frame.shape[1]), int(left_center[1] * frame.shape[0])), 5, (255, 0, 0), 30)
-                        cv2.circle(frame, (int(right_center[0] * frame.shape[1]), int(right_center[1] * frame.shape[0])), 5, (255, 0, 0), 30)
+                        # cv2.circle(frame, (int(left_center[0] * frame.shape[1]), int(left_center[1] * frame.shape[0])), 5, (255, 0, 0), 30)
+                        # cv2.circle(frame, (int(right_center[0] * frame.shape[1]), int(right_center[1] * frame.shape[0])), 5, (255, 0, 0), 30)
 
-                        self.draw_connections(frame, pose_data, self.POSE_CONNECTION)
-                        self.draw_connections(frame, left_hand, self.HANDS_CONNECTION)
+                        # self.draw_connections(frame, pose_data, self.POSE_CONNECTION)
+                        # self.draw_connections(frame, left_hand, self.HANDS_CONNECTION)
                         self.draw_connections(frame, right_hand, self.HANDS_CONNECTION)
 
-        elif json == "face":
-            print("Frame: ", frame_number)
-            data = self.data_face
-            # print("Face")
-            if "iterations" in data:
-                for iterations in data["iterations"]:
-                    if iterations["frame"] == frame_number:
+        # elif json == "face":
+        #     print("Frame: ", frame_number)
+        #     data = self.data_face
+        #     # print("Face")
+        #     if "iterations" in data:
+        #         for iterations in data["iterations"]:
+        #             if iterations["frame"] == frame_number:
 
-                        for x, y, indx in iterations["face"]:
-                            x = int(x * frame.shape[1])
-                            y = int(y * frame.shape[0])
-                            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-                            # print("Face: ", x, y)
+        #                 for x, y, indx in iterations["face"]:
+        #                     x = int(x * frame.shape[1])
+        #                     y = int(y * frame.shape[0])
+        #                     cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+        #                     # print("Face: ", x, y)
 
-                        x, y = iterations["gaze"][0]
-                        x2, y2 = iterations["gaze"][1]
+        #                 x, y = iterations["gaze"][0]
+        #                 x2, y2 = iterations["gaze"][1]
 
-                        x, y = int(x), int(y)
-                        x2, y2 = int(x2), int(y2)
+        #                 x, y = int(x), int(y)
+        #                 x2, y2 = int(x2), int(y2)
                         
-                        cv2.line(frame, (x, y), (x2, y2), (0, 0, 255), 7)
+        #                 cv2.line(frame, (x, y), (x2, y2), (0, 0, 255), 7)
 
-                        self.draw_connections(frame, iterations["face"], self.FACE_CONNECTION)
+        #                 self.draw_connections(frame, iterations["face"], self.FACE_CONNECTION)
 
     def draw_connections(self, frame, keypoints, connections):
 

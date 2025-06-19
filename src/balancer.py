@@ -2,8 +2,8 @@
 Uso: python balancer.py dir path frame_limit
 
 dir = directorio con las sesiones con los videos y JSONs
-path = directorio donde se guardarán las imágenes balanceadas y el nuevo JSON
-frame_limit = límite de frames por acción
+path = directorio donde se guardaran las imagenes balanceadas y el nuevo JSON
+frame_limit = limite de frames por accion
 
 """
 
@@ -14,20 +14,21 @@ import sys
 import numpy as np
 import cv2  
 import time
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
-skipped_frames = 10
+skipped_frames = 45
+divided_frames = 3
 
 class Balancer:
     def __init__(self):
         self.total_frames_per_action = {}
         self.global_frame_stats = {
-            'hands_using_wheel/both': {'total': 0, 'valid': 0}
-            # 'hands_using_wheel/only_left': {'total': 0, 'valid': 0},
-            # 'hands_using_wheel/only_right': {'total': 0, 'valid': 0}
-            # 'driver_actions/radio': {'total': 0, 'valid': 0},
-            # 'driver_actions/drinking': {'total': 0, 'valid': 0},
-            # 'driver_actions/reach_side': {'total': 0, 'valid': 0}
+            'hands_using_wheel/both': {'total': 0, 'valid': 0},
+            'hands_using_wheel/only_left': {'total': 0, 'valid': 0},
+            'hands_using_wheel/only_right': {'total': 0, 'valid': 0},
+            'driver_actions/radio': {'total': 0, 'valid': 0},
+            'driver_actions/drinking': {'total': 0, 'valid': 0},
+            'driver_actions/reach_side': {'total': 0, 'valid': 0}
         }
 
         self.counter_both = 0
@@ -42,7 +43,7 @@ class Balancer:
     def create_directories(self, base_path):
         # actions = ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right', 'driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side']
         # actions = ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right']
-        actions = ['hands_using_wheel/both']
+        actions = ['hands_using_wheel/only_left']
         # actions = ['driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side']
         for action in actions:
             action_path = os.path.join(base_path, action)
@@ -81,7 +82,7 @@ class Balancer:
             
             self.counter_both += 1
             # if self.counter_both > skipped_frames:
-            if self.counter_both % 2 == 0:
+            if self.counter_both % (divided_frames + 2) == 0:
                 return True
             
         elif action_type == 'hands_using_wheel/only_left':
@@ -91,7 +92,7 @@ class Balancer:
 
             self.counter_left += 1
             # if self.counter_left > skipped_frames:
-            if (self.counter_left % 2) == 0:
+            if (self.counter_left % (divided_frames)) == 0:
                 return True
             
         elif action_type == 'hands_using_wheel/only_right':
@@ -101,7 +102,7 @@ class Balancer:
 
             self.counter_right += 1
             # if self.counter_right > skipped_frames:
-            if (self.counter_right % 2) == 0:
+            if (self.counter_right % divided_frames) == 0:
                 return True
 
         elif action_type == 'driver_actions/radio':
@@ -111,8 +112,8 @@ class Balancer:
 
             self.counter_radio += 1
             # if self.counter_radio > skipped_frames:
-            if (self.counter_radio % 2) == 0:
-                return True
+            # if (self.counter_radio % (divided_frames - 2)) == 0:
+            return True
 
         elif action_type == 'driver_actions/drinking':
             # if(self.changer != 4):
@@ -121,7 +122,7 @@ class Balancer:
 
             self.counter_drinking += 1
             # if self.counter_drinking > skipped_frames:
-            if (self.counter_drinking % 2) == 0:
+            if (self.counter_drinking % (divided_frames - 1)) == 0:
                 return True
 
         elif action_type == 'driver_actions/reach_side':
@@ -131,7 +132,7 @@ class Balancer:
 
             self.counter_reach += 1
             # if self.counter_reach > skipped_frames:
-            if (self.counter_reach % 2) == 0:
+            if (self.counter_reach % (divided_frames - 1)) == 0:
                 return True
         
         return False
@@ -139,11 +140,16 @@ class Balancer:
     def balance_frames(self, json_file_groups, frame_limit, base_output_path):
         # global_frame_count = {action_type: 0 for action_type in ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right', 'driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side']}
         # global_frame_count = {action_type: 0 for action_type in ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right']}
-        global_frame_count = {action_type: 0 for action_type in ['hands_using_wheel/both']}
+        global_frame_count = {action_type: 0 for action_type in ['hands_using_wheel/only_left']}
         # global_frame_count = {action_type: 0 for action_type in ['driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side']}
         action_data_by_type = {action_type: [] for action_type in global_frame_count.keys()}
 
+        print("Procesando JSONs...")
+        print("Limitando a:", frame_limit, "frames por acción")
+        print("json_file_groups:", json_file_groups)
+
         for json_file_set in json_file_groups:
+            print(f"Procesando subdirectorio: {json_file_set['subdirectory']}")
             photos_to_save = []
             frame_seen = []
 
@@ -165,43 +171,90 @@ class Balancer:
                 data_pose = json.load(file)
 
             if not frames_file_path:
-                print(f"No se encontró 'frames.json' en el subdirectorio: {subdir_path}")
+                print(f"No se encontro 'frames.json' en el subdirectorio: {subdir_path}")
                 continue
 
             with open(frames_file_path, 'r') as file:
                 data = json.load(file)
 
-            actions = data['openlabel']['actions']
+            key = "openlabel" if "openlabel" in data else "vcd" if "vcd" in data else None
 
-            for frame_id, frame_data in data["openlabel"]["streams"].items():
-                if "face_camera" in frame_id:
-                    face_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
-                elif "hands_camera" in frame_id:
-                    hands_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
-                elif "body_camera" in frame_id:
-                    pose_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
+            if key and "actions" in data[key]:
+                actions = data[key]["actions"]
+
+            if key and "streams" in data[key]:
+                for frame_id, frame_data in data[key]["streams"].items():
+                    if "face_camera" in frame_id:
+                        face_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
+                    elif "hands_camera" in frame_id:
+                        hands_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
+                    elif "body_camera" in frame_id:
+                        pose_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
+
+            # for key, action in actions.items():
+            #     action_type = action['type']
+            #     # print(f"Procesando acción: {action_type}")
+            #     if(action_type == "hands_using_wheel/both" or action_type == "hands_using_wheel/only_left" or action_type == "hands_using_wheel/only_right"):
+            #         skipped_frames = 45
+            #     elif(action_type == "driver_actions/radio" or action_type == "driver_actions/drinking" or action_type == "driver_actions/reach_side"):
+            #         skipped_frames = 15
+                    
+            #     if action_type in global_frame_count and global_frame_count[action_type] < frame_limit:
+            #         # for interval in action['frame_intervals']:
+            #         #     frame_start = interval['frame_start']
+            #         #     frame_end = interval['frame_end']
+
+            #         #     for i in range(frame_start, frame_end + 1):
+            #         #         if (i >= len(data_hands['iterations']) or i >= len(data_face['iterations']) or i >= len(data_pose['iterations'])):
+            #         #             continue
+
+            #         for interval in action['frame_intervals']:
+            #             frame_start = interval['frame_start'] + skipped_frames
+            #             frame_end = interval['frame_end'] - skipped_frames
+
+            invalid_frames = []
 
             for key, action in actions.items():
                 action_type = action['type']
-                # print(f"Procesando acción: {action_type}")
-                if action_type in global_frame_count and global_frame_count[action_type] < frame_limit:
-                    # for interval in action['frame_intervals']:
-                    #     frame_start = interval['frame_start']
-                    #     frame_end = interval['frame_end']
 
-                    #     for i in range(frame_start, frame_end + 1):
-                    #         if (i >= len(data_hands['iterations']) or i >= len(data_face['iterations']) or i >= len(data_pose['iterations'])):
-                    #             continue
-
+                if action_type == "driver_actions/reach_side" or action_type == "driver_actions/drinking" or action_type == "driver_actions/radio": #  and not any(excluded in action.get('subtypes', []) for excluded in ["driver_actions/reach_side", "driver_actions/drinking", "driver_actions/radio"]):
                     for interval in action['frame_intervals']:
-                        frame_start = interval['frame_start'] + skipped_frames
-                        frame_end = interval['frame_end'] - skipped_frames
+                        frame_start = interval['frame_start']
+                        frame_end = interval['frame_end']
+
+                        for i in range(frame_start, frame_end + 1):
+                            invalid_frames.append(i)
+
+            for key, action in actions.items():
+                action_type = action['type']
+                print(f"Procesando acción: {action_type}")
+                
+                # Filtrar solo 'only_left' excluyendo 'reach_side', 'drinking' y 'radio'
+                if action_type == "hands_using_wheel/only_left": # and not any(excluded in action.get('subtypes', []) for excluded in ["driver_actions/reach_side", "driver_actions/drinking", "driver_actions/radio"]):
+                    
+                    skipped_frames = 30
+                    
+                    if action_type in global_frame_count and global_frame_count[action_type] < frame_limit:
+                        for interval in action['frame_intervals']:
+                            frame_start = interval['frame_start'] + skipped_frames
+                            frame_end = interval['frame_end'] - skipped_frames
+                            
+                            if frame_start >= frame_end:
+                                continue
+                            
+                            # Procesamiento de frames
+                            for i in range(frame_start, frame_end + 1):
+                                if (i >= len(data_hands['iterations']) or i >= len(data_face['iterations']) or i >= len(data_pose['iterations'])):
+                                    continue
 
                         # Asegúrate de que el intervalo sea válido después del ajuste
                         if frame_start >= frame_end:
                             continue
 
                         for i in range(frame_start, frame_end + 1):
+                            if i in invalid_frames:
+                                continue
+
                             if (i >= len(data_hands['iterations']) or i >= len(data_face['iterations']) or i >= len(data_pose['iterations'])):
                                 continue
 
@@ -218,6 +271,8 @@ class Balancer:
 
                             self.global_frame_stats[action_type]['total'] += 1
 
+                            # print(data_hands['iterations'][hands_frame])
+
                             d_hands = data_hands['iterations'][hands_frame]['hands']
                             d_face = data_face['iterations'][face_frame]['face']
                             d_pose = data_pose['iterations'][pose_frame]['pose']
@@ -233,17 +288,18 @@ class Balancer:
                                 self.check_hand(left_hand_pose, pose_body) and 
                                 self.check_hand(right_hand_pose, pose_body)) or
                                 (action_type == 'hands_using_wheel/only_left' and 
-                                self.check_hand(left_hand_pose, pose_body)) or
+                                self.check_hand(right_hand_pose, pose_body)) or # habria que cambiarlo a left_hand_pose pero hay que mirar por que funciona con right_hand_pose
                                 (action_type == 'hands_using_wheel/only_right' and 
                                 self.check_hand(right_hand_pose, pose_body)) or 
                                 (action_type == 'driver_actions/radio' and
                                 self.check_hand(right_hand_pose, pose_body)) or
                                 (action_type == 'driver_actions/drinking' and
                                 self.check_hand(right_hand_pose, pose_body)) or
-                                (action_type == 'driver_actions/reach_side' and
-                                self.check_hand(right_hand_pose, pose_body)) 
+                                (action_type == 'driver_actions/reach_side' and    #TODO
+                                self.check_hand(left_hand_pose, pose_body)) 
                             ):
                                 if not self.check_counter(action_type):
+                                    self.global_frame_stats[action_type]['total'] -= 1
                                     continue
 
                                 action_data_by_type[action_type].append({
@@ -272,22 +328,6 @@ class Balancer:
         totals = [self.global_frame_stats[action]['total'] for action in actions]
         valids = [self.global_frame_stats[action]['valid'] for action in actions]
 
-        x = np.arange(len(actions))  
-        bar_width = 0.4          
-        plt.figure(figsize=(12, 6))
-
-        plt.bar(x, totals, width=bar_width, color='skyblue', label='Total')
-        plt.bar(x, valids, width=bar_width, color='green', label='Valid', alpha=0.7)
-
-        plt.xticks(x, actions, rotation=45, ha='right')
-        plt.xlabel('Acción')
-        plt.ylabel('Número de frames')
-        plt.title('Frames Totales y Válidos por Acción')
-        plt.legend()
-
-        plt.tight_layout()
-        plt.show()
-
         for action_type, data in action_data_by_type.items():
             action_subdir = os.path.join(base_output_path, action_type)
             output_file = os.path.join(action_subdir, f"{action_type.replace('/', '_')}.json")
@@ -298,13 +338,16 @@ class Balancer:
 
     def get_json_files(self, directory_path):
         json_file_groups = []
+        print(f"Procesando directorio: {directory_path}")
         for subdir, _, files in os.walk(directory_path):
+            print(f"Procesando subdirectorio: {subdir}")
             json_files = [os.path.join(subdir, f) for f in files if f.endswith('.json') or f.endswith('.mp4')]
             if json_files:
                 json_file_groups.append({
                     'subdirectory': subdir,
                     'files': json_files
                 })
+                print(f"Se encontraron archivos JSON en: {subdir}")
         return json_file_groups
 
     def save_images(self, photos_to_save, subdir_path, base_output_path, pose_video_path, hands_video_path, face_video_path, sync):
