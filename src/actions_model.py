@@ -25,7 +25,7 @@ def tf(to_tf, original, axis):
 def calc_ang(p1, p2, center):
     u, v = np.array(p1) - np.array(center), np.array(p2) - np.array(center)
     cos_theta = np.dot(u, v) / (np.linalg.norm(u) * np.linalg.norm(v))
-    return np.degrees(np.arccos(np.clip(cos_theta, -1.0, 1.0)))  # Clip to avoid domain errors
+    return np.degrees(np.arccos(np.clip(cos_theta, -1.0, 1.0)))  
 
 def convert_to_multilabel(df):
     label_map = {

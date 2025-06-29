@@ -6,17 +6,13 @@ import matplotlib.patches as mpatches
 with open("prediction_timeline.json", "r") as f:
     data = json.load(f)
 
-# Categorías y etiquetas
 categories = ["actions", "gaze", "phone"]
-category_labels = {"actions": "Acción", "gaze": "Mirada", "phone": "Móvil"}
 
-# Función para interpretar valores de 'phone'
 def interpret_phone(value):
     if value == 1:
         return "Using phone"
     return None
 
-# Eventos por categoría y etiqueta
 events = {cat: {} for cat in categories}
 current = {cat: None for cat in categories}
 start_time = {cat: None for cat in categories}
@@ -27,7 +23,6 @@ for entry in data:
         value = entry.get(cat)
         if cat == "phone":
             value = interpret_phone(value)
-            # Para phone, tratamos el valor como antes
             if value != current[cat]:
                 if current[cat] is not None:
                     label = current[cat]
@@ -37,24 +32,17 @@ for entry in data:
                 current[cat] = value
                 start_time[cat] = timestamp
         else:
-            # Para actions y gaze, manejamos listas de valores
             current_values = set(value) if value else set()
             previous_values = set(current[cat]) if current[cat] is not None else set()
-            
-            # Si hay cambios en los valores
             if current_values != previous_values:
-                # Finalizar los intervalos anteriores
                 if current[cat] is not None:
                     for label in previous_values:
                         if label not in events[cat]:
                             events[cat][label] = []
                         events[cat][label].append((start_time[cat], timestamp))
-                
-                # Iniciar nuevos intervalos
                 current[cat] = list(current_values) if current_values else None
                 start_time[cat] = timestamp
 
-# Añadir últimos bloques
 for cat in categories:
     if cat == "phone":
         label = current[cat]
@@ -69,12 +57,10 @@ for cat in categories:
                     events[cat][label] = []
                 events[cat][label].append((start_time[cat], data[-1]["timestamp"]))
 
-# Asegurar que la categoría 'phone' tenga la etiqueta "Using phone" incluso sin datos
 if "Using phone" not in events["phone"]:
     events["phone"]["Using phone"] = []
 
-# Crear gráfico
-fig, ax = plt.subplots(figsize=(16, 10))  # Vertical
+fig, ax = plt.subplots(figsize=(16, 10))
 
 yticks = []
 yticklabels = []
@@ -82,29 +68,63 @@ colors = {}
 color_palette = plt.cm.tab20.colors
 color_idx = 0
 y = 0
-separation = 1  # Espacio entre categorías
+separation = 1
 
 for cat in categories:
     if y > 0:
-        ax.axhline(y - 0.5, color='gray', linestyle='dotted')  # Línea discontinua
-    
-    # Mostrar todas las etiquetas definidas, incluso si no tienen intervalos
+        ax.axhline(y - 0.5, color='gray', linestyle='dotted')
     for label in events[cat].keys():
         if label not in colors:
             colors[label] = color_palette[color_idx % len(color_palette)]
             color_idx += 1
-        
-        # Dibujar los intervalos si existen
         intervals = events[cat][label]
         for start, end in intervals:
             ax.barh(y, end - start, left=start, height=0.8, color=colors[label])
-        
-        # Añadir la etiqueta al gráfico aunque no tenga intervalos
         yticks.append(y)
         yticklabels.append(label)
         y += 1
-    
-    y += separation  # Separación entre categorías
+    y += separation
+
+# Dibujar fondo por frame
+
+alert_frame_counter = 0  # Contador local
+
+for i, entry in enumerate(data):
+    t = entry["timestamp"]
+    actions = entry.get("actions", [])
+    phone = interpret_phone(entry.get("phone", None))
+
+    # Colores suaves
+    color_verde = (0.7, 1, 0.7, 0.2)      # Verde pálido
+    color_amarillo = (1, 1, 0.6, 0.3)     # Amarillo suave
+    color_rojo = (1, 0.6, 0.6, 0.2)       # Rojo suave
+    color_phone = (1, 0.4, 0.4, 0.3)      # Rojo para phone
+
+    fondo_color = color_verde
+
+    if phone == "Using phone":
+        fondo_color = color_phone
+        alert_frame_counter = 0  # Reiniciar contador si phone activo (si quieres, puedes decidir no reiniciar)
+    else:
+        found_driver = any(a.startswith("driver_action") for a in actions)
+        found_hands = any(a in ["hands_on_wheel/only_left", "hands_on_wheel/only_right"] for a in actions)
+
+        if found_driver or found_hands:
+            alert_frame_counter += 1
+            if alert_frame_counter <= 20:
+                fondo_color = color_amarillo
+            else:
+                fondo_color = color_rojo
+        else:
+            alert_frame_counter = 0
+            fondo_color = color_verde
+
+    if i < len(data) - 1:
+        next_t = data[i + 1]["timestamp"]
+    else:
+        next_t = data[-1]["timestamp"] + 1
+
+    ax.axvspan(t, next_t, facecolor=fondo_color, zorder=-1)
 
 # Estética
 ax.set_yticks(yticks)
@@ -113,7 +133,6 @@ ax.set_xlabel("Tiempo (s)")
 ax.set_title("Análisis temporal por etiqueta")
 ax.grid(True, axis='x', linestyle='--', alpha=0.5)
 
-# Leyenda
 legend_patches = [mpatches.Patch(color=col, label=lbl) for lbl, col in colors.items()]
 ax.legend(handles=legend_patches, bbox_to_anchor=(1.05, 1), loc='upper left', title="Etiquetas")
 
