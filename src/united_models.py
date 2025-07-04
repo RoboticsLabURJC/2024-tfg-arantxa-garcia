@@ -12,6 +12,7 @@ import mediapipe as mp
 import gaze
 import copy
 from collections import deque
+import joblib
 
 def tf(to_tf, original, axis):
     return to_tf[axis] - original[axis]
@@ -796,8 +797,11 @@ test_actions_json = [  '/home/arantxa/tfg/tfgData/actions/test_10_2/both_test.js
                 '/home/arantxa/tfg/tfgData/actions/test_10_2/reach_side_test.json']
 
 phone_detector = PhoneDetector()
-action_model = train_actions_model(train_actions_json, test_actions_json)
-gaze_model = train_gaze_model(train_gaze_jsons, test_gaze_jsons)
+# action_model = train_actions_model(train_actions_json, test_actions_json) # For trainning the models
+# gaze_model = train_gaze_model(train_gaze_jsons, test_gaze_jsons)
+action_model = joblib.load('actions_model.pkl')
+gaze_model = joblib.load('gaze_model.pkl')
+
 
 sys.argv = [sys.argv[0], '/home/arantxa/tfg/tfgData/jsons_dir/1_s1/frames.json',
             '/home/arantxa/tfg/tfgData/jsons_dir/1_s1/hands.json',
