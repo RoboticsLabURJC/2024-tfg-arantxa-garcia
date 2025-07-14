@@ -296,7 +296,7 @@ class videoReconstructor:
                 else:
                     right_hand_landmarks = hand_landmarks
 
-        if left_hand_landmarks: # ESTO NO FUNCIONA BIEN CHECKEAR EL INDICE
+        if left_hand_landmarks:
             for idx, landmark in enumerate(left_hand_landmarks.landmark):
                 self.data_pose['pose'][idx + 21 + 8] = [landmark.x, landmark.y, idx]
 
@@ -310,17 +310,10 @@ class videoReconstructor:
             right_center_x, right_center_y = self.calculate_center_of_mass(right_hand_landmarks.landmark)
             self.data_pose['pose'][50] = [right_center_x, right_center_y, 51]
 
-        # if is_phone:
-        #     self.data_pose['pose'][52] = [1.0, 1.0, 52]
-        # else:
-        #     self.data_pose['pose'][52] = [0.0, 0.0, 52]
-
         new_iteration = {
-            # 'frame': len(self.data_pose['iterations']),
             'pose': self.data_pose['pose'].copy()
         }
 
-        # self.data_pose['iterations'].append(new_iteration)
         return new_iteration
 
     def update_face_json(self, results_face, frame):
@@ -334,8 +327,6 @@ class videoReconstructor:
             p1, p2 = gaze.gaze(frame, results_face.multi_face_landmarks[0])
             self.data_face['gaze'][0] = [p1[0], p1[1]] 
             self.data_face['gaze'][1] = [p2[0], p2[1]]  
-
-            counter = 0
 
             for face_idx, face_landmarks in enumerate(results_face.multi_face_landmarks):
                 for idx, landmark in enumerate(face_landmarks.landmark):
@@ -690,51 +681,18 @@ class videoReconstructor:
 
                 cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-train_gaze_jsons = [  '/home/arantxa/tfg/tfgData/gaze/train/center_mirror.json',
-                '/home/arantxa/tfg/tfgData/gaze/train/left_mirror.json',
-                '/home/arantxa/tfg/tfgData/gaze/train/right_mirror.json',
-                '/home/arantxa/tfg/tfgData/gaze/train/front.json',
-                '/home/arantxa/tfg/tfgData/gaze/train/left.json',
-                '/home/arantxa/tfg/tfgData/gaze/train/right.json',
-                '/home/arantxa/tfg/tfgData/gaze/train/front_right.json',
-                '/home/arantxa/tfg/tfgData/gaze/train/steering_wheel.json']
-
-test_gaze_jsons = [  '/home/arantxa/tfg/tfgData/gaze/test/center_mirror.json',
-                '/home/arantxa/tfg/tfgData/gaze/test/left_mirror.json',
-                '/home/arantxa/tfg/tfgData/gaze/test/right_mirror.json',
-                '/home/arantxa/tfg/tfgData/gaze/test/front.json',
-                '/home/arantxa/tfg/tfgData/gaze/test/left.json',
-                '/home/arantxa/tfg/tfgData/gaze/test/right.json',
-                '/home/arantxa/tfg/tfgData/gaze/test/front_right.json',
-                '/home/arantxa/tfg/tfgData/gaze/test/steering_wheel.json']
-
-
-train_actions_json = [  '/home/arantxa/tfg/tfgData/actions/train_10_2/both_train.json', 
-                '/home/arantxa/tfg/tfgData/actions/train_10_2/only_left_train.json', 
-                '/home/arantxa/tfg/tfgData/actions/train_10_2/only_right_train.json',
-                '/home/arantxa/tfg/tfgData/actions/train_10_2/radio_train.json', 
-                '/home/arantxa/tfg/tfgData/actions/train_10_2/drinking_train.json', 
-                '/home/arantxa/tfg/tfgData/actions/train_10_2/reach_side_train.json']
-
-test_actions_json = [  '/home/arantxa/tfg/tfgData/actions/test_10_2/both_test.json', 
-                '/home/arantxa/tfg/tfgData/actions/test_10_2/only_left_test.json', 
-                '/home/arantxa/tfg/tfgData/actions/test_10_2/only_right_test.json',
-                '/home/arantxa/tfg/tfgData/actions/test_10_2/radio_test.json', 
-                '/home/arantxa/tfg/tfgData/actions/test_10_2/drinking_test.json', 
-                '/home/arantxa/tfg/tfgData/actions/test_10_2/reach_side_test.json']
-
 phone_detector = PhoneDetector()
 action_model = joblib.load('actions_model.pkl')
 gaze_model = joblib.load('gaze_model.pkl')
 
 
-sys.argv = [sys.argv[0], '/home/arantxa/tfg/tfgData/jsons_dir/1_s1/frames.json',
-            '/home/arantxa/tfg/tfgData/jsons_dir/1_s1/hands.json',
-            '/home/arantxa/tfg/tfgData/jsons_dir/1_s1/pose.json',
-            '/home/arantxa/tfg/tfgData/jsons_dir/1_s1/face.json',
-            '/home/arantxa/tfg/tfgData/jsons_dir/1_s1/pose.mp4',
-            '/home/arantxa/tfg/tfgData/jsons_dir/1_s1/hands.mp4',
-            '/home/arantxa/tfg/tfgData/jsons_dir/1_s1/face.mp4']
+sys.argv = [sys.argv[0], '1_s1/frames.json',
+            '1_s1/hands.json',
+            '1_s1/pose.json',
+            '1_s1/face.json',
+            '1_s1/pose.mp4',
+            '1_s1/hands.mp4',
+            '1_s1/face.mp4']
 
 vr = videoReconstructor(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7], action_model, gaze_model, phone_detector) #, steering_model, le_steering, le_action)
 video_paths = [sys.argv[5], sys.argv[6], sys.argv[7]]

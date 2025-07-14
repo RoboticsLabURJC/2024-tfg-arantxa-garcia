@@ -9,7 +9,6 @@ from sklearn.multiclass import OneVsRestClassifier
 import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
 import seaborn as sns
-from datetime import datetime
 import random
 import math
 
@@ -253,7 +252,6 @@ class RandomForest:
 
 
 def train_actions_model(json_files_train, json_files_test):
-    # Cargar datos de entrenamiento
     RandomForest_performer_train = RandomForest(*json_files_train)
     RandomForest_performer_train.open_jsons()
     for data in [RandomForest_performer_train.both, RandomForest_performer_train.onlyleft, RandomForest_performer_train.onlyright, 
@@ -269,7 +267,6 @@ def train_actions_model(json_files_train, json_files_test):
     X_train = dataset_train.iloc[:, :-6]  # all but labels
     Y_train = dataset_train.iloc[:, -6:]  # labels
 
-    # Cargar datos de prueba
     RandomForest_performer_test = RandomForest(*json_files_test)
     RandomForest_performer_test.open_jsons()
     for data in [RandomForest_performer_test.both, RandomForest_performer_test.onlyleft, RandomForest_performer_test.onlyright, 
