@@ -18,7 +18,7 @@ def reduce_json(json_file, to_remove, mode="equally"):
         new_json = []
     else:
         if mode == "end":
-            new_json = data[:-to_remove]  # Remove last to_remove elements
+            new_json = data[:-to_remove] 
         else:  # Default to "equally"
             indices_to_remove = set(np.round(np.linspace(0, total_len - 1, to_remove, endpoint=False)).astype(int))
             new_json = [entry for idx, entry in enumerate(data) if idx not in indices_to_remove]

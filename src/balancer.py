@@ -13,8 +13,6 @@ import os
 import sys
 import numpy as np
 import cv2  
-import time
-# import matplotlib.pyplot as plt
 
 skipped_frames = 45
 divided_frames = 3
@@ -41,10 +39,7 @@ class Balancer:
         self.changer = 10000
 
     def create_directories(self, base_path):
-        # actions = ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right', 'driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side']
-        # actions = ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right']
-        actions = ['hands_using_wheel/only_left']
-        # actions = ['driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side']
+        actions = ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right', 'driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side']
         for action in actions:
             action_path = os.path.join(base_path, action)
             os.makedirs(action_path, exist_ok=True)
@@ -76,72 +71,38 @@ class Balancer:
     def check_counter(self, action_type):
         
         if action_type == 'hands_using_wheel/both':
-            # if(self.changer != 0):
-            #     self.changer = 0
-            #     self.counter_both = 0
-            
             self.counter_both += 1
-            # if self.counter_both > skipped_frames:
             if self.counter_both % (divided_frames + 2) == 0:
                 return True
             
         elif action_type == 'hands_using_wheel/only_left':
-            # if(self.changer != 1):
-            #     self.changer = 1
-            #     self.counter_left = 0
-
             self.counter_left += 1
-            # if self.counter_left > skipped_frames:
             if (self.counter_left % (divided_frames)) == 0:
                 return True
             
         elif action_type == 'hands_using_wheel/only_right':
-            # if(self.changer != 2):
-            #     self.changer = 2
-            #     self.counter_right = 0
-
             self.counter_right += 1
-            # if self.counter_right > skipped_frames:
             if (self.counter_right % divided_frames) == 0:
                 return True
 
         elif action_type == 'driver_actions/radio':
-            # if(self.changer != 3):
-            #     self.changer = 3
-            #     self.counter_radio = 0
-
             self.counter_radio += 1
-            # if self.counter_radio > skipped_frames:
-            # if (self.counter_radio % (divided_frames - 2)) == 0:
             return True
 
         elif action_type == 'driver_actions/drinking':
-            # if(self.changer != 4):
-            #     self.changer = 4
-            #     self.counter_drinking = 0
-
             self.counter_drinking += 1
-            # if self.counter_drinking > skipped_frames:
             if (self.counter_drinking % (divided_frames - 1)) == 0:
                 return True
 
         elif action_type == 'driver_actions/reach_side':
-            # if(self.changer != 5):
-            #     self.changer = 5
-            #     self.counter_reach = 0
-
             self.counter_reach += 1
-            # if self.counter_reach > skipped_frames:
             if (self.counter_reach % (divided_frames - 1)) == 0:
                 return True
         
         return False
 
     def balance_frames(self, json_file_groups, frame_limit, base_output_path):
-        # global_frame_count = {action_type: 0 for action_type in ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right', 'driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side']}
-        # global_frame_count = {action_type: 0 for action_type in ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right']}
-        global_frame_count = {action_type: 0 for action_type in ['hands_using_wheel/only_left']}
-        # global_frame_count = {action_type: 0 for action_type in ['driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side']}
+        global_frame_count = {action_type: 0 for action_type in ['hands_using_wheel/both', 'hands_using_wheel/only_left', 'hands_using_wheel/only_right', 'driver_actions/radio', 'driver_actions/drinking', 'driver_actions/reach_side']}
         action_data_by_type = {action_type: [] for action_type in global_frame_count.keys()}
 
         print("Procesando JSONs...")
@@ -190,27 +151,6 @@ class Balancer:
                         hands_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
                     elif "body_camera" in frame_id:
                         pose_sync = frame_data["stream_properties"]["sync"]["frame_shift"]
-
-            # for key, action in actions.items():
-            #     action_type = action['type']
-            #     # print(f"Procesando acción: {action_type}")
-            #     if(action_type == "hands_using_wheel/both" or action_type == "hands_using_wheel/only_left" or action_type == "hands_using_wheel/only_right"):
-            #         skipped_frames = 45
-            #     elif(action_type == "driver_actions/radio" or action_type == "driver_actions/drinking" or action_type == "driver_actions/reach_side"):
-            #         skipped_frames = 15
-                    
-            #     if action_type in global_frame_count and global_frame_count[action_type] < frame_limit:
-            #         # for interval in action['frame_intervals']:
-            #         #     frame_start = interval['frame_start']
-            #         #     frame_end = interval['frame_end']
-
-            #         #     for i in range(frame_start, frame_end + 1):
-            #         #         if (i >= len(data_hands['iterations']) or i >= len(data_face['iterations']) or i >= len(data_pose['iterations'])):
-            #         #             continue
-
-            #         for interval in action['frame_intervals']:
-            #             frame_start = interval['frame_start'] + skipped_frames
-            #             frame_end = interval['frame_end'] - skipped_frames
 
             invalid_frames = []
 

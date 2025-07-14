@@ -2,7 +2,6 @@ import json
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-# Cargar datos
 with open("prediction_timeline.json", "r") as f:
     data = json.load(f)
 
@@ -85,26 +84,23 @@ for cat in categories:
         y += 1
     y += separation
 
-# Dibujar fondo por frame
-
-alert_frame_counter = 0  # Contador local
+alert_frame_counter = 0 
 
 for i, entry in enumerate(data):
     t = entry["timestamp"]
     actions = entry.get("actions", [])
     phone = interpret_phone(entry.get("phone", None))
 
-    # Colores suaves
-    color_verde = (0.7, 1, 0.7, 0.2)      # Verde pálido
-    color_amarillo = (1, 1, 0.6, 0.3)     # Amarillo suave
-    color_rojo = (1, 0.6, 0.6, 0.2)       # Rojo suave
-    color_phone = (1, 0.4, 0.4, 0.3)      # Rojo para phone
+    green_color = (0.7, 1, 0.7, 0.2)      # Light green
+    yellow_color = (1, 1, 0.6, 0.3)     # Light yellow
+    red_color = (1, 0.6, 0.6, 0.2)       # Light red
+    phone_color = (1, 0.4, 0.4, 0.3)      # Light red for phone
 
-    fondo_color = color_verde
+    background = green_color
 
     if phone == "Using phone":
-        fondo_color = color_phone
-        alert_frame_counter = 0  # Reiniciar contador si phone activo (si quieres, puedes decidir no reiniciar)
+        background = phone_color
+        alert_frame_counter = 0  
     else:
         found_driver = any(a.startswith("driver_action") for a in actions)
         found_hands = any(a in ["hands_on_wheel/only_left", "hands_on_wheel/only_right"] for a in actions)
@@ -112,21 +108,20 @@ for i, entry in enumerate(data):
         if found_driver or found_hands:
             alert_frame_counter += 1
             if alert_frame_counter <= 20:
-                fondo_color = color_amarillo
+                background = yellow_color
             else:
-                fondo_color = color_rojo
+                background = red_color
         else:
             alert_frame_counter = 0
-            fondo_color = color_verde
+            background = green_color
 
     if i < len(data) - 1:
         next_t = data[i + 1]["timestamp"]
     else:
         next_t = data[-1]["timestamp"] + 1
 
-    ax.axvspan(t, next_t, facecolor=fondo_color, zorder=-1)
+    ax.axvspan(t, next_t, facecolor=background, zorder=-1)
 
-# Estética
 ax.set_yticks(yticks)
 ax.set_yticklabels(yticklabels)
 ax.set_xlabel("Tiempo (s)")

@@ -12,7 +12,7 @@ def split_json(json_file):
         with open(json_file, 'r', encoding='latin-1') as f:
             data = json.load(f)
 
-    random.shuffle(data)  # Mezclar aleatoriamente los datos para hacer la división equitativa
+    random.shuffle(data) 
     split_index = int(len(data) * 0.8)
     
     train_data = data[:split_index]

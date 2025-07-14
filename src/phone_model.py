@@ -13,11 +13,11 @@ import seaborn as sns
 os.environ['YOLO_VERBOSE'] = 'False'
 logging.getLogger("ultralytics").setLevel(logging.CRITICAL)
 logging.getLogger("torch").setLevel(logging.CRITICAL)
-warnings.filterwarnings("ignore")  # Silencia warnings de PyTorch u OpenCV
+warnings.filterwarnings("ignore")
 
 class PhoneDetector:
     def __init__(self):
-        self.model = YOLO("yolov8x.pt")  # modelo nano, muy ligero
+        self.model = YOLO("yolov8x.pt")
 
     def detect(self, image):
         results = self.model(image, verbose=False)
@@ -25,12 +25,11 @@ class PhoneDetector:
         for result in results:
             boxes = result.boxes
             for cls, box in zip(boxes.cls, boxes.xyxy):
-                if int(cls) == 67:  # 67 = cell phone en COCO
+                if int(cls) == 67:  # 67 = cell phone in COCO
                     x1, y1, x2, y2 = map(int, box)
-                    # Dibujar bounding box
                     area = (x2 - x1) * (y2 - y1)
                     normalized_area = area / (image.shape[0] * image.shape[1])
-                    normalized_area_S = f"{normalized_area:.2f}"  # Formatear a dos decimales
+                    normalized_area_S = f"{normalized_area:.2f}"  
                     
                     if normalized_area < 0.05:
                         return 1
@@ -121,7 +120,6 @@ class VideoProcessor:
             if self.draw_face:
                 self.process_face(frame, results_face)
 
-            # Agregar información de este frame
             actions = self.actions.get(frame_number, [])
             frame_data.append({
                 'frame_number': frame_number,
@@ -186,7 +184,7 @@ class VideoProcessor:
                         end_video = True
                         break
 
-                    current_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)  # Frame actual según OpenCV
+                    current_frame = cap.get(cv2.CAP_PROP_POS_FRAMES) 
 
                     if current_frame != frame_count[cap_number] + 1:
                         print(f"Frame perdido: Esperado {frame_count[cap_number] + 1}, leído {current_frame}")
@@ -203,7 +201,7 @@ class VideoProcessor:
                     frame_count[cap_number] = current_frame
                 else:
                     # If it has not started, it pauses in black until the synchronization is complete
-                    frame = np.zeros((height, width, 3), dtype=np.uint8)  # Frame negro
+                    frame = np.zeros((height, width, 3), dtype=np.uint8)
 
                 black_frame = np.zeros((reduced_height, reduced_width, 3), dtype=np.uint8)
 
@@ -215,13 +213,12 @@ class VideoProcessor:
 
                         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                        is_phone = phone_detector.detect(frame.copy())  # pásalo en BGR directamente
+                        is_phone = phone_detector.detect(frame.copy())  
 
                     else:
                         frame = black_frame  # Black till synchronization of pose_sync
 
                 elif cap_number == 1:  # Second video (hands)
-                    # print("entra al segundo video")
                     if frame_number >= self.hands_sync:
                         if not video_started[cap_number]:
                             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -261,7 +258,7 @@ class VideoProcessor:
                     else:
                         frames_with_phone_dectected_bad += 1
                     found = True
-                    break  # Solo procesamos la primera acción relevante
+                    break  
             if not found:
                 if is_phone == 1:
                     frames_without_phone_dectected_bad += 1
@@ -276,7 +273,6 @@ class VideoProcessor:
                 break
 
             frame_number += 1
-            # print(frame_number)
 
             if end_video:
                 break
@@ -293,13 +289,11 @@ class VideoProcessor:
 
         FP = frames_without_phone_dectected_bad
 
-        # Crear la matriz con tus variables
         conf_matrix = np.array([
             [TN, FP],  
             [FN, TP]  
         ])
 
-        # Mostrar matriz con seaborn
         plt.figure(figsize=(6, 5))
         sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues",
                     xticklabels=["No Teléfono", "Teléfono"],

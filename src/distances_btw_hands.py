@@ -1,14 +1,8 @@
-import cv2
 import sys
 import numpy as np
 import json
-import os
-import time
-import random
-import pandas as pd
 import matplotlib.pyplot as plt
 import math
-from collections import Counter
 
 hist_features_1 = []
 hist_features_2 = []

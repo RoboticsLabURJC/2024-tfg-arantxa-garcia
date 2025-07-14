@@ -35,7 +35,6 @@ class videoReconstructor:
         self.hands_pose = mp.solutions.hands.Hands() 
         self.hands_only = mp.solutions.hands.Hands() 
         self.mp_face_mesh = mp.solutions.face_mesh
-        # self.face_mesh = self.mp_face_mesh.FaceMesh()
         self.face_mesh = self.mp_face_mesh.FaceMesh(refine_landmarks=True, max_num_faces=1,
                                                         min_detection_confidence=0.5, min_tracking_confidence=0.5)
         self.mp_drawing = mp.solutions.drawing_utils
@@ -94,10 +93,8 @@ class videoReconstructor:
             return (gaze[1] - frame.shape[0] / 2) / (frame.shape[0] / 2)
 
     def prepare_prediction_action(self, data):
-        # print("entra prepare")
 
         right_elbow = data['pose'][1]
-        # print(data)
 
         features_action = {
             "center_left_x": tf(data['pose'][50], right_elbow, 0),
@@ -127,64 +124,64 @@ class videoReconstructor:
     def prepare_prediction_gaze(self, data, frame):
         nose = data['face'][1]
         features_gaze  = {
-            "face_0_x": tf(data['face'][0], nose, 0),  # data['face'][0][0],
-            "face_0_y": tf(data['face'][0], nose, 1),  # data['face'][0][1],
-            "face_1_x": tf(data['face'][1], nose, 0),  # data['face'][1][0],
-            "face_1_y": tf(data['face'][1], nose, 1),  # data['face'][1][1],
-            "face_2_x": tf(data['face'][2], nose, 0),  # data['face'][2][0],
-            "face_2_y": tf(data['face'][2], nose, 1),  # data['face'][2][1],
-            "face_3_x": tf(data['face'][3], nose, 0),  # data['face'][3][0],
-            "face_3_y": tf(data['face'][3], nose, 1),  # data['face'][3][1],            
-            "face_4_x": tf(data['face'][4], nose, 0),  # data['face'][4][0],
-            "face_4_y": tf(data['face'][4], nose, 1),  # data['face'][4][1],
-            "face_5_x": tf(data['face'][5], nose, 0),  # data['face'][5][0],
-            "face_5_y": tf(data['face'][5], nose, 1),  # data['face'][5][1],
-            "face_6_x": tf(data['face'][6], nose, 0),  # data['face'][6][0],
-            "face_6_y": tf(data['face'][6], nose, 1),  # data['face'][6][1],
-            "face_7_x": tf(data['face'][7], nose, 0),  # data['face'][7][0],
-            "face_7_y": tf(data['face'][7], nose, 1),  # data['face'][7][1],
-            "face_8_x": tf(data['face'][8], nose, 0),  # data['face'][8][0],
-            "face_8_y": tf(data['face'][8], nose, 1),  # data['face'][8][1],
-            "face_9_x": tf(data['face'][9], nose, 0),  # data['face'][9][0],
-            "face_9_y": tf(data['face'][9], nose, 1),  # data['face'][9][1],
-            "face_10_x": tf(data['face'][10], nose, 0),  # data['face'][10][0],
-            "face_10_y": tf(data['face'][10], nose, 1),  # data['face'][10][1],
-            "face_11_x": tf(data['face'][11], nose, 0),  # data['face'][11][0],
-            "face_11_y": tf(data['face'][11], nose, 1),  # data['face'][11][1],
-            "face_12_x": tf(data['face'][12], nose, 0),  # data['face'][12][0],
-            "face_12_y": tf(data['face'][12], nose, 1),  # data['face'][12][1],
-            "face_13_x": tf(data['face'][13], nose, 0),  # data['face'][13][0],
-            "face_13_y": tf(data['face'][13], nose, 1),  # data['face'][13][1],
-            "face_14_x": tf(data['face'][14], nose, 0),  # data['face'][14][0],
-            "face_14_y": tf(data['face'][14], nose, 1),  # data['face'][14][1],
-            "face_15_x": tf(data['face'][15], nose, 0),  # data['face'][15][0],
-            "face_15_y": tf(data['face'][15], nose, 1),  # data['face'][15][1],
-            "face_16_x": tf(data['face'][16], nose, 0),  # data['face'][16][0],
-            "face_16_y": tf(data['face'][16], nose, 1),  # data['face'][16][1],
-            "face_17_x": tf(data['face'][17], nose, 0),  # data['face'][17][0],
-            "face_17_y": tf(data['face'][17], nose, 1),  # data['face'][17][1],
-            "face_18_x": tf(data['face'][18], nose, 0),  # data['face'][18][0],
-            "face_18_y": tf(data['face'][18], nose, 1),  # data['face'][18][1],
-            "face_19_x": tf(data['face'][19], nose, 0),  # data['face'][19][0],
-            "face_19_y": tf(data['face'][19], nose, 1),  # data['face'][19][1],
-            "face_20_x": tf(data['face'][20], nose, 0),  # data['face'][20][0],
-            "face_20_y": tf(data['face'][20], nose, 1),  # data['face'][20][1],
-            "face_21_x": tf(data['face'][21], nose, 0),  # data['face'][21][0],
-            "face_21_y": tf(data['face'][21], nose, 1),  # data['face'][21][1],
-            "face_22_x": tf(data['face'][22], nose, 0),  # data['face'][22][0],
-            "face_22_y": tf(data['face'][22], nose, 1),  # data['face'][22][1],
-            "face_23_x": tf(data['face'][23], nose, 0),  # data['face'][23][0],
-            "face_23_y": tf(data['face'][23], nose, 1),  # data['face'][23][1],
-            "face_24_x": tf(data['face'][24], nose, 0),  # data['face'][24][0],
-            "face_24_y": tf(data['face'][24], nose, 1),  # data['face'][24][1],
-            "face_25_x": tf(data['face'][25], nose, 0),  # data['face'][25][0],
-            "face_25_y": tf(data['face'][25], nose, 1),  # data['face'][25][1],
-            "face_26_x": tf(data['face'][26], nose, 0),  # data['face'][26][0],
-            "face_26_y": tf(data['face'][26], nose, 1),  # data['face'][26][1],
-            "gaze_x1": self.normalize_gaze(data['gaze'][0], frame, 0),  # data['gaze'][0][0],
-            "gaze_y1": self.normalize_gaze(data['gaze'][0], frame, 1),  # data['gaze'][0][1],
-            "gaze_x2": self.normalize_gaze(data['gaze'][1], frame, 0),  # data['gaze'][1][0],
-            "gaze_y2": self.normalize_gaze(data['gaze'][1], frame, 1)  # data['gaze'][1][1]
+            "face_0_x": tf(data['face'][0], nose, 0),
+            "face_0_y": tf(data['face'][0], nose, 1),
+            "face_1_x": tf(data['face'][1], nose, 0),
+            "face_1_y": tf(data['face'][1], nose, 1),
+            "face_2_x": tf(data['face'][2], nose, 0),
+            "face_2_y": tf(data['face'][2], nose, 1),
+            "face_3_x": tf(data['face'][3], nose, 0),
+            "face_3_y": tf(data['face'][3], nose, 1),            
+            "face_4_x": tf(data['face'][4], nose, 0),
+            "face_4_y": tf(data['face'][4], nose, 1),
+            "face_5_x": tf(data['face'][5], nose, 0),
+            "face_5_y": tf(data['face'][5], nose, 1),
+            "face_6_x": tf(data['face'][6], nose, 0),
+            "face_6_y": tf(data['face'][6], nose, 1),
+            "face_7_x": tf(data['face'][7], nose, 0),
+            "face_7_y": tf(data['face'][7], nose, 1),
+            "face_8_x": tf(data['face'][8], nose, 0),
+            "face_8_y": tf(data['face'][8], nose, 1),
+            "face_9_x": tf(data['face'][9], nose, 0),
+            "face_9_y": tf(data['face'][9], nose, 1),
+            "face_10_x": tf(data['face'][10], nose, 0),
+            "face_10_y": tf(data['face'][10], nose, 1),
+            "face_11_x": tf(data['face'][11], nose, 0),
+            "face_11_y": tf(data['face'][11], nose, 1),
+            "face_12_x": tf(data['face'][12], nose, 0),
+            "face_12_y": tf(data['face'][12], nose, 1),
+            "face_13_x": tf(data['face'][13], nose, 0),
+            "face_13_y": tf(data['face'][13], nose, 1),
+            "face_14_x": tf(data['face'][14], nose, 0),
+            "face_14_y": tf(data['face'][14], nose, 1),
+            "face_15_x": tf(data['face'][15], nose, 0),
+            "face_15_y": tf(data['face'][15], nose, 1),
+            "face_16_x": tf(data['face'][16], nose, 0),
+            "face_16_y": tf(data['face'][16], nose, 1),
+            "face_17_x": tf(data['face'][17], nose, 0),
+            "face_17_y": tf(data['face'][17], nose, 1),
+            "face_18_x": tf(data['face'][18], nose, 0),
+            "face_18_y": tf(data['face'][18], nose, 1),
+            "face_19_x": tf(data['face'][19], nose, 0),
+            "face_19_y": tf(data['face'][19], nose, 1),
+            "face_20_x": tf(data['face'][20], nose, 0),
+            "face_20_y": tf(data['face'][20], nose, 1),
+            "face_21_x": tf(data['face'][21], nose, 0),
+            "face_21_y": tf(data['face'][21], nose, 1),
+            "face_22_x": tf(data['face'][22], nose, 0),
+            "face_22_y": tf(data['face'][22], nose, 1),
+            "face_23_x": tf(data['face'][23], nose, 0),
+            "face_23_y": tf(data['face'][23], nose, 1),
+            "face_24_x": tf(data['face'][24], nose, 0),
+            "face_24_y": tf(data['face'][24], nose, 1),
+            "face_25_x": tf(data['face'][25], nose, 0),
+            "face_25_y": tf(data['face'][25], nose, 1),
+            "face_26_x": tf(data['face'][26], nose, 0),
+            "face_26_y": tf(data['face'][26], nose, 1),
+            "gaze_x1": self.normalize_gaze(data['gaze'][0], frame, 0), 
+            "gaze_y1": self.normalize_gaze(data['gaze'][0], frame, 1),
+            "gaze_x2": self.normalize_gaze(data['gaze'][1], frame, 0),
+            "gaze_y2": self.normalize_gaze(data['gaze'][1], frame, 1)  
         }
         return features_gaze
 
@@ -259,24 +256,18 @@ class videoReconstructor:
                 self.data_face = json.load(f)
 
     def update_pose_json(self, results_pose, results_hands):
-        # Índices en self.data_pose['pose']
+        # Indices in self.data_pose['pose']
         # -----------------------------------
-        #  0 -  7   -> Puntos clave del cuerpo (hombros, codos, muñecas, caderas)
-        #  8 - 28   -> Puntos de la mano izquierda
-        #  29 - 49  -> Puntos de la mano derecha
-        #    50     -> Centro de masa de la mano izquierda
-        #    51     -> Centro de masa de la mano derecha
-
+        #  0 -  7   -> Body keypoints (shoulders, elbows, wrists, hips)
+        #  8 - 28  -> Left hand keypoints
+        # 29 - 49  -> Right hand keypoints
+        #    50    -> Center of mass of the left hand
+        #    51    -> Center of mass of the right hand
 
         self.data_pose['pose'] = [[0, 0, idx] for idx in range(53)]
 
-        counter = 0
-
         if results_pose.pose_landmarks:
             for idx, landmark in enumerate(results_pose.pose_landmarks.landmark):
-                # if idx in [11, 12, 23, 24, 13, 15, 14, 16]:
-                #     self.data_pose['pose'][counter] = [landmark.x, landmark.y, idx]
-                #     counter += 1
                 if idx == 11:
                     self.data_pose['pose'][0] = [landmark.x, landmark.y, idx]
                 elif idx == 12:
@@ -348,10 +339,6 @@ class videoReconstructor:
 
             for face_idx, face_landmarks in enumerate(results_face.multi_face_landmarks):
                 for idx, landmark in enumerate(face_landmarks.landmark):
-                    # if idx in {17, 61, 291, 0, 206, 426, 50, 48, 4, 278, 280, 145, 122, 351, 374, 130, 133, 362, 359, 159, 386, 46, 276, 105, 107, 336, 334}:
-                    #     # combined_landmarks.append([landmark.x, landmark.y, idx])
-                    #     self.data_face['face'][counter] = [landmark.x, landmark.y, idx]
-                    #     counter += 1
                     if idx == 0:
                         self.data_face['face'][0] = [landmark.x, landmark.y, idx]
                     elif idx == 4:
@@ -414,7 +401,6 @@ class videoReconstructor:
             'gaze': copy.deepcopy(self.data_face['gaze'])
         }
 
-        # self.data_face['iterations'].append(new_iteration)
         return new_iteration
 
     def reconstruct(self, video_paths):
@@ -437,15 +423,6 @@ class videoReconstructor:
 
         frame_number = 0
         video_started = [False] * len(caps)
-
-        needed_consecutive = 15
-        needed_consecutive_phone = 60
-        consecutive_actions = {}
-        missing_actions = {}
-        consecutive_phone = 0
-        missing_phone = 0
-        consecutive_gaze = {}
-        missing_gaze = {}
         timeline = []
 
         phone_detected = False
@@ -479,17 +456,13 @@ class videoReconstructor:
                     results_pose = self.pose.process(frame_rgb)
                     results_hands = self.hands_pose.process(frame_rgb)
                     data_pose = self.update_pose_json(results_pose, results_hands)
-                    # self.process_hands(frame, results_hands)
                     is_phone_now = self.phone_detector.detect(frame)
-
-                    # phone_detected = is_phone_now
 
                     last_10_frames_phone.append(is_phone_now)
 
                     if len(last_10_frames_phone) > 5:
                         last_10_frames_phone.pop(0)
 
-                    # Determinar si el teléfono ha sido detectado en más del 50% de los últimos 20 frames
                     phone_count = sum(last_10_frames_phone)
                     if phone_count > 10:
                         phone_detected = True
@@ -530,14 +503,11 @@ class videoReconstructor:
 
                     print(f"Frame {frame_number}: Actions prediction: {now_pred}")
 
-                    # Añadir las predicciones actuales al historial
                     last_20_frames_actions.append(now_pred)
 
-                    # Mantener solo los últimos 20 frames
                     if len(last_20_frames_actions) > 20:
                         last_20_frames_actions.pop(0)
 
-                    # Determinar qué acciones han aparecido en la mayoría de los frames
                     action_counts = {}
                     for frame in last_20_frames_actions:
                         for action in frame:
@@ -546,7 +516,6 @@ class videoReconstructor:
                             else:
                                 action_counts[action] = 1
 
-                    # Filtrar acciones que aparecen en más del 50% de los frames (10/20)
                     prediction_s = [action for action, count in action_counts.items() if count > 10]
 
                     if not prediction_s:
@@ -584,44 +553,11 @@ class videoReconstructor:
                     features_df = pd.DataFrame([[features[name] for name in features.keys()]],
                                                 columns=features.keys())
 
-                    # Predecir: ahora devuelve una única etiqueta, no un array one-hot
                     prediction_label = self.model_gaze.predict(features_df)[0]
 
-                    # Etiquetas en el mismo orden que usaste al entrenar
-                    class_labels = [
-                        "gaze_zone/center_mirror", "gaze_zone/left_mirror", "gaze_zone/right_mirror",
-                        "gaze_zone/front", "gaze_zone/left", "gaze_zone/right",
-                        "gaze_zone/front_right", "gaze_zone/steering_wheel"
-                    ]
-
-                    # Convertir la predicción en el label correspondiente
                     gaze = f"gaze_zone/{prediction_label}"
 
-                    # # Lógica de acumulación para estabilizar la predicción
-                    # final_gaze = []
-
-                    # consecutive_gaze[gaze] = consecutive_gaze.get(gaze, 0) + 1
-                    # if consecutive_gaze[gaze] >= needed_consecutive:
-                    #     final_gaze.append(gaze)
-
-                    # # Limpiar predicciones que han desaparecido
-                    # for g in list(consecutive_gaze.keys()):
-                    #     if g != gaze:
-                    #         if consecutive_gaze[g] < needed_consecutive:
-                    #             del consecutive_gaze[g]
-                    #         else:
-                    #             missing_gaze[g] = missing_gaze.get(g, 0) + 1
-                    #             if missing_gaze[g] >= needed_consecutive:
-                    #                 del consecutive_gaze[g]
-                    #                 del missing_gaze[g]
-                    #             else:
-                    #                 final_gaze.append(g)
-                    #     else:
-                    #         if g in missing_gaze:
-                    #             del missing_gaze[g]
-
-                    # prediction_gaze = final_gaze
-                    prediction_gaze = [gaze]  # Aquí puedes ajustar la lógica de predicción
+                    prediction_gaze = [gaze] 
                     gaze_result = prediction_gaze
                     frame = cv2.resize(frame, (reduced_width, reduced_height))
 
@@ -630,8 +566,6 @@ class videoReconstructor:
 
                 frames.append(frame)
                 cap_number += 1
-
-            # print(f"Frame {frame_number}")
 
             if len(frames) != len(caps):
                 break
@@ -643,9 +577,6 @@ class videoReconstructor:
             if len(frames) > 2:
                 combined_frame[reduced_height:reduced_height*2, 0:reduced_width] = frames[2]
 
-            # cv2.imshow("Combined Frame", combined_frame)
-            # cv2.waitKey(1) 
-
             if frame_number in self.actions:
                 actions = self.actions[frame_number]
                 for pred_act in prediction_s:
@@ -655,7 +586,7 @@ class videoReconstructor:
                 if len(prediction_s) == 0:
                     self.counter_total += 1
 
-            # AÑADIR AL TIMELINE SOLO SI HAY ALGO ACTIVO
+            # we will save the frame only if there is a prediction or phone detected or gaze result
             if prediction_s or phone_detected or gaze_result:
                 timeline.append({
                     "frame": frame_number,
@@ -676,7 +607,6 @@ class videoReconstructor:
         out.release()
 
     def paint_frame(self, frame, frame_number, json):
-        # print("Frame: ", frame_number)
         if json == "hands":
             data = self.data_hands
             if "iterations" in data:
@@ -700,7 +630,6 @@ class videoReconstructor:
 
         elif json == "pose":
             data = self.data_pose
-            # print("Pose")
             if "iterations" in data:
                 for iterations in data["iterations"]:
                     if iterations["frame"] == frame_number:
@@ -724,7 +653,6 @@ class videoReconstructor:
 
         elif json == "face":
             data = self.data_face
-            # print("Face")
             if "iterations" in data:
                 for iterations in data["iterations"]:
                     if iterations["frame"] == frame_number:
@@ -733,7 +661,6 @@ class videoReconstructor:
                             x = int(x * frame.shape[1])
                             y = int(y * frame.shape[0])
                             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-                            # print("Face: ", x, y)
     
                         x, y = iterations["gaze"][0]
                         x2, y2 = iterations["gaze"][1]
@@ -797,8 +724,6 @@ test_actions_json = [  '/home/arantxa/tfg/tfgData/actions/test_10_2/both_test.js
                 '/home/arantxa/tfg/tfgData/actions/test_10_2/reach_side_test.json']
 
 phone_detector = PhoneDetector()
-# action_model = train_actions_model(train_actions_json, test_actions_json) # For trainning the models
-# gaze_model = train_gaze_model(train_gaze_jsons, test_gaze_jsons)
 action_model = joblib.load('actions_model.pkl')
 gaze_model = joblib.load('gaze_model.pkl')
 

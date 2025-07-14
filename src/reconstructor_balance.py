@@ -2,10 +2,10 @@
 
 python reconstructor_balance.py <json_file> <data_path>
 
-json_file: JSON con los datos balanceados
-data_path: Ruta donde se encuentran los frames de los videos
+json_file: JSON file with the balanced data
+data_path: Path where the video frames are located
 
-Imprimirá un video con los frames de las manos, la cara y la pose de cada acción balanceada.
+It will print a video showing the hand, face, and pose frames for each balanced action.
 
 """
 
@@ -21,13 +21,10 @@ import matplotlib.pyplot as plt
 import math
 
 def tf(to_tf, original, flag):
-        #scale = original[0] * original[1]
         if(flag == 0):
-            return (original[0]) #* scale
+            return (original[0])
         elif(flag == 1):
-            return (original[1]) #* scale
-        
-        return
+            return (original[1])
 
         return 0
 
@@ -59,10 +56,10 @@ def convert_to_multilabel(df):
         "driver_actions/drinking": "drinking",
         "driver_actions/reach_side": "reach_side"
     }
-    df['label'] = df['label'].map(label_mapping)  # Mapear nombres de etiquetas
-    multilabels = pd.get_dummies(df['label'])  # Convertir a columnas binarias
-    df = pd.concat([df, multilabels], axis=1)  # Unir al dataset
-    df.drop(columns=['label'], inplace=True)  # Eliminar columna original
+    df['label'] = df['label'].map(label_mapping)
+    multilabels = pd.get_dummies(df['label'])  
+    df = pd.concat([df, multilabels], axis=1)  
+    df.drop(columns=['label'], inplace=True)  
     return df
 
 def generate_random_number(prin_num, rang_low=0.015, rang_high=0.015):
@@ -106,7 +103,6 @@ def prepare_data(item, image):
     plot_features_on_image(image, features, features_tras, features_gauss)
 
 def draw_connections(frame, keypoints, connections, color):
-    """Dibuja las conexiones entre los puntos clave proporcionados."""
     
     for idx1, idx2 in connections:
         x1, y1, x2, y2 = None, None, None, None
@@ -123,7 +119,6 @@ def draw_connections(frame, keypoints, connections, color):
             cv2.line(frame, (x1, y1), (x2, y2), color, 2)  
             
 def plot_features_on_image(image, features, features_tras, features_gauss):
-    """Carga la imagen y dibuja los puntos de cada conjunto de datos con leyenda y conexiones."""
     if image.shape[2] == 3:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  
     else:
@@ -235,8 +230,6 @@ class balanceReconstructor:
 
             prepare_data(action, pose_im)
 
-            # self.show_collage(face_im, hands_im, pose_im, action)
-
     def show_collage(self, face_im, hands_im, pose_im, action):
         frame1 = hands_im
         frame2 = pose_im
@@ -278,7 +271,6 @@ class balanceReconstructor:
         cap.release()
 
     def paint_frame(self, frame, frame_number, json, data):
-        # print("Frame: ", frame_number)
         print(data)
         if json == "hands":
             for x, y, z in data['hands']['hands']:
@@ -316,7 +308,6 @@ class balanceReconstructor:
                 x = int(x * frame.shape[1])
                 y = int(y * frame.shape[0])
                 cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-                # print("Face: ", x, y)
 
             for x, y in data['face']["gaze"]:
                 x = int(x * frame.shape[1])
@@ -347,7 +338,3 @@ if __name__ == "__main__":
     else:
         vr = balanceReconstructor(sys.argv[1], sys.argv[2])
         vr.reconstruct()
-
-# generar un nuevo dataset con los frames independientes, tener un directorio por clase y que cada directorio tenga su propio json
-# hay que referenciar en el json de que video viene cada frame
-# asegurarme de que en el nuevi dataset este todo sincronizado

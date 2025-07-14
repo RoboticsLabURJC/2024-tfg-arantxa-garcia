@@ -71,9 +71,6 @@ class Balancer_plot:
             hands_file_path = next((f for f in json_file_set['files'] if os.path.basename(f) == 'hands.json'), None)
             face_file_path = next((f for f in json_file_set['files'] if os.path.basename(f) == 'face.json'), None)
             pose_file_path = next((f for f in json_file_set['files'] if os.path.basename(f) == 'pose.json'), None)
-            pose_video_path = next((f for f in json_file_set['files'] if os.path.basename(f) == 'pose.mp4'), None)
-            hands_video_path = next((f for f in json_file_set['files'] if os.path.basename(f) == 'hands.mp4'), None)
-            face_video_path = next((f for f in json_file_set['files'] if os.path.basename(f) == 'face.mp4'), None)
 
             with open(hands_file_path, 'r') as file:
                 data_hands = json.load(file)
@@ -124,7 +121,6 @@ class Balancer_plot:
                                 continue
 
                             d_hands = data_hands['iterations'][hands_frame]['hands']
-                            d_face = data_face['iterations'][face_frame]['face']
                             d_pose = data_pose['iterations'][pose_frame]['pose']
 
                             left_hand = d_hands[21:]

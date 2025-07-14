@@ -1,16 +1,16 @@
 """
 
-Uso: python reconstructor.py <json_original> <json_hands> <json_pose> <json_face> <video_body> <video_hands> <video_face>
+Usage: python reconstructor.py <json_original> <json_hands> <json_pose> <json_face> <video_body> <video_hands> <video_face>
 
-Json_original: Archivo JSON original con las acciones y sincronización de cámaras.
-Json_hands: Archivo JSON con los datos de las manos.
-Json_pose: Archivo JSON con los datos de la pose.
-Json_face: Archivo JSON con los datos de la cara.
-Video_body: Video con la cámara del pose.
-Video_hands: Video con la cámara de las manos.
-Video_face: Video con la cámara de la cara.
+json_original: Original JSON file containing the actions and camera synchronization.
+json_hands: JSON file with hand data.
+json_pose: JSON file with pose data.
+json_face: JSON file with face data.
+video_body: Video from the body (pose) camera.
+video_hands: Video from the hand camera.
+video_face: Video from the face camera.
 
-Imprimirá un video con los frames de las manos, la cara y la pose de cada acción pasados por MediaPipe.
+It will generate a video showing the frames of the hands, face, and pose for each action processed with MediaPipe.
 
 """
 
@@ -19,8 +19,6 @@ import mediapipe as mp
 import sys
 import numpy as np
 import json
-import time
-import csv
 import os
 from helpers import relative, relativeT
 import cv2
@@ -73,9 +71,9 @@ class videoReconstructor:
                 self.files = [file for file in os.listdir(self.directory_path)
                                  if os.path.isfile(os.path.join(self.directory_path, file))]
             else:
-                print(f"{self.directory_path} no es un directorio válido.")
+                print(f"{self.directory_path} is not a valid directory.")
         except Exception as e:
-            print(f"Error al acceder al directorio: {e}")
+            print(f"Couldn't access directory: {e}")
 
     def load_actions_from_json(self):
         try:
@@ -143,7 +141,7 @@ class videoReconstructor:
         caps = [cv2.VideoCapture(video_path) for video_path in video_paths]
 
         if not all([cap.isOpened() for cap in caps]):
-            print("No se pudo abrir uno o más videos.")
+            print("Couldn't open one or more videos.")
             return
 
         width = int(caps[0].get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -196,7 +194,6 @@ class videoReconstructor:
                             video_started[cap_number] = True
 
                         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                        # print("llamando a paint_frame")
                         self.paint_frame(frame, frame_number - self.hands_sync , "hands")
                         frame = cv2.resize(frame, (reduced_width, reduced_height))
                     else:
@@ -232,8 +229,6 @@ class videoReconstructor:
             # Blank space for actions
             if frame_number in self.actions:
                 actions = self.actions[frame_number]
-                print(actions)
-                print("-------------------------------------------")
                 for i, action in enumerate(actions):
                     cv2.putText(combined_frame, action, (reduced_width + 10, reduced_height + 30 + i * 30),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
@@ -259,69 +254,26 @@ class videoReconstructor:
             if "iterations" in data:
                 for iterations in data["iterations"]:
                     if iterations["frame"] == frame_number:
-                        # for x, y, z in iterations["hands"]:
-                        #     x = int(x * frame.shape[1])
-                        #     y = int(y * frame.shape[0])
-                        #     cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
-                        # for x, y in iterations["centers"]:
-                        #     x = int(x * frame.shape[1])
-                        #     y = int(y * frame.shape[0])
-                        #     cv2.circle(frame, (x, y), 5, (255, 0, 0), 30)
-
-                        # hand_left = iterations["hands"][:21]
                         hand_right = iterations["hands"][21:]
 
-                        # self.draw_connections(frame, hand_left, self.HANDS_CONNECTION)
                         self.draw_connections(frame, hand_right, self.HANDS_CONNECTION)
 
         if json == "pose":
             data = self.data_pose
-            # print("Pose")
             if "iterations" in data:
                 for iterations in data["iterations"]:
                     if iterations["frame"] == frame_number:
                         for x, y, z in iterations["pose"]:
                             x = int(x * frame.shape[1])
                             y = int(y * frame.shape[0])
-                            # cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
                         pose_data = iterations["pose"][:8]
                         left_hand = iterations["pose"][8:29]
                         right_hand = iterations["pose"][29:50]
                         left_center = iterations["pose"][50]
                         right_center = iterations["pose"][51]
-
-                        # cv2.circle(frame, (int(left_center[0] * frame.shape[1]), int(left_center[1] * frame.shape[0])), 5, (255, 0, 0), 30)
-                        # cv2.circle(frame, (int(right_center[0] * frame.shape[1]), int(right_center[1] * frame.shape[0])), 5, (255, 0, 0), 30)
-
-                        # self.draw_connections(frame, pose_data, self.POSE_CONNECTION)
-                        # self.draw_connections(frame, left_hand, self.HANDS_CONNECTION)
                         self.draw_connections(frame, right_hand, self.HANDS_CONNECTION)
-
-        # elif json == "face":
-        #     print("Frame: ", frame_number)
-        #     data = self.data_face
-        #     # print("Face")
-        #     if "iterations" in data:
-        #         for iterations in data["iterations"]:
-        #             if iterations["frame"] == frame_number:
-
-        #                 for x, y, indx in iterations["face"]:
-        #                     x = int(x * frame.shape[1])
-        #                     y = int(y * frame.shape[0])
-        #                     cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-        #                     # print("Face: ", x, y)
-
-        #                 x, y = iterations["gaze"][0]
-        #                 x2, y2 = iterations["gaze"][1]
-
-        #                 x, y = int(x), int(y)
-        #                 x2, y2 = int(x2), int(y2)
-                        
-        #                 cv2.line(frame, (x, y), (x2, y2), (0, 0, 255), 7)
-
-        #                 self.draw_connections(frame, iterations["face"], self.FACE_CONNECTION)
 
     def draw_connections(self, frame, keypoints, connections):
 

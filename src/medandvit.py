@@ -17,7 +17,6 @@ mp_hands = mp.solutions.hands
 hands_pose = mp.solutions.hands.Hands() 
 hands_only = mp.solutions.hands.Hands() 
 mp_face_mesh = mp.solutions.face_mesh
-# face_mesh = mp_face_mesh.FaceMesh()
 face_mesh = mp_face_mesh.FaceMesh(refine_landmarks=True, max_num_faces=1,
                                                 min_detection_confidence=0.5, min_tracking_confidence=0.5)
 mp_drawing = mp.solutions.drawing_utils
@@ -250,7 +249,6 @@ def compute_normalized_distances(vitpose_list, mediapipe_list, distance_list):
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-# You can choose any detector of your choice
 person_image_processor = AutoProcessor.from_pretrained("PekingU/rtdetr_r50vd_coco_o365")
 person_model = RTDetrForObjectDetection.from_pretrained("PekingU/rtdetr_r50vd_coco_o365", device_map=device)
 
@@ -285,9 +283,6 @@ palette = np.array(
 link_colors = palette[[0, 0, 0, 0, 7, 7, 7, 9, 9, 9, 9, 9, 16, 16, 16, 16, 16, 16, 16]]
 keypoint_colors = palette[[16, 16, 16, 16, 16, 9, 9, 9, 9, 9, 9, 0, 0, 0, 0, 0, 0]]
 
-# url = "http://images.cocodataset.org/val2017/000000000139.jpg"
-# image = Image.open(requests.get(url, stream=True).raw)
-
 cap = cv2.VideoCapture("prueba_vitpose.mp4")
 
 while cap.isOpened():
@@ -298,13 +293,6 @@ while cap.isOpened():
 
     image = Image.fromarray(frame)
 
-# ------------------------------------------------------------------------
-# Stage 1. Detect humans on the image
-# ------------------------------------------------------------------------
-
-
-# lo que he adelantado un tab ----------------------------
-
     inputs = person_image_processor(images=image, return_tensors="pt").to(device)
 
     with torch.no_grad():
@@ -313,19 +301,13 @@ while cap.isOpened():
     results = person_image_processor.post_process_object_detection(
         outputs, target_sizes=torch.tensor([(image.height, image.width)]), threshold=0.3
     )
-    result = results[0]  # take first image results
+    result = results[0]
 
-    # Human label refers 0 index in COCO dataset
     person_boxes = result["boxes"][result["labels"] == 0]
     person_boxes = person_boxes.cpu().numpy()
 
-    # Convert boxes from VOC (x1, y1, x2, y2) to COCO (x1, y1, w, h) format
     person_boxes[:, 2] = person_boxes[:, 2] - person_boxes[:, 0]
     person_boxes[:, 3] = person_boxes[:, 3] - person_boxes[:, 1]
-
-    # ------------------------------------------------------------------------
-    # Stage 2. Detect keypoints for each person found
-    # ------------------------------------------------------------------------
 
     inputs = image_processor(image, boxes=[person_boxes], return_tensors="pt").to(device)
 
@@ -333,27 +315,13 @@ while cap.isOpened():
         outputs = model(**inputs)
 
     pose_results = image_processor.post_process_pose_estimation(outputs, boxes=[person_boxes])
-    image_pose_result = pose_results[0]  # results for first image
+    image_pose_result = pose_results[0]
 
-
-    # Note: keypoint_edges and color palette are dataset-specific
     keypoint_edges = model.config.edges
 
     numpy_image = np.array(image)
     frame_image = np.array(image)
     result_image = np.array(image)
-
-    # print(f"Number of people detected: {len(image_pose_result)}")
-
-    # for pose_result in image_pose_result:
-    #     scores = np.array(pose_result["scores"])
-    #     keypoints = np.array(pose_result["keypoints"])
-
-    #     # draw each point on image
-    #     result_image = draw_points(result_image, numpy_image, keypoints, scores, keypoint_colors, keypoint_score_threshold=0.3, radius=15, show_keypoint_weight=False)
-
-    #     # draw links
-    #     result_image = draw_links(result_image, numpy_image, keypoints, scores, keypoint_edges, link_colors, keypoint_score_threshold=0.3, thickness=3, show_keypoint_weight=False)
 
     if len(image_pose_result) == 0:
         print("No people detected.")
@@ -369,20 +337,17 @@ while cap.isOpened():
     else:
         print(f"Number of people detected: {len(image_pose_result)}")
 
-        # Seleccionamos la persona con mayor suma de scores
         best_pose_result = max(image_pose_result, key=lambda p: sum(p["scores"]))
 
         scores = np.array(best_pose_result["scores"])
         keypoints = np.array(best_pose_result["keypoints"])
 
-        # draw each point on image
         result_image = draw_points(
             result_image, numpy_image, keypoints, scores,
             keypoint_colors, keypoint_score_threshold=0.3,
             radius=2, show_keypoint_weight=False
         )
 
-        # draw links
         result_image = draw_links(
             result_image, numpy_image, keypoints, scores,
             keypoint_edges, link_colors, keypoint_score_threshold=0.3,
@@ -394,8 +359,6 @@ while cap.isOpened():
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results_pose = pose.process(frame)
     results_hands = hands_pose.process(frame)
-    # if results_hands.multi_hand_landmarks:
-    #     result_image = process_hands(result_image, frame, results_hands)
 
     if results_pose.pose_landmarks:
         result_image = process_pose(result_image, frame, results_pose)
@@ -409,9 +372,6 @@ while cap.isOpened():
         right_wrist_mediapipe.append((0, 0))
         left_hip_mediapipe.append((0, 0))
         right_hip_mediapipe.append((0, 0))
-
-    
-    # result_image = process_hands(result_image, frame, results_hands)
 
     cv2.imshow("Pose estimation", result_image)
     if cv2.waitKey(10) & 0xFF == ord('q'):
@@ -438,7 +398,6 @@ mean_distance_right_hip = sum(distance_right_hip) / len(distance_right_hip)
 print("Missing vitpose frames percentage: ", (not_found_vitpose / total_frames) * 100)
 print("Missing mediapipe frames percentage: ", (not_found_mediapipe / total_frames) * 100)
 
-# Nombres de las variables
 labels = [
     'left_shoulder', 'right_shoulder',
     'left_elbow', 'right_elbow',
@@ -446,7 +405,6 @@ labels = [
     'left_hip', 'right_hip'
 ]
 
-# Valores medios correspondientes
 mean_distances = [
     mean_distance_left_shoulder,
     mean_distance_right_shoulder,
@@ -460,7 +418,6 @@ mean_distances = [
 
 import matplotlib.pyplot as plt
 
-# Lista de todas las distancias por articulación
 all_distances = [
     distance_left_shoulder,
     distance_right_shoulder,
@@ -472,7 +429,6 @@ all_distances = [
     distance_right_hip
 ]
 
-# Nombres de las articulaciones
 labels = [
     'Hombro Izq.', 'Hombro Der.',
     'Codo Izq.', 'Codo Der.',
@@ -480,22 +436,13 @@ labels = [
     'Cadera Izq.', 'Cadera Der.'
 ]
 
-# Crear el boxplot
 plt.figure(figsize=(12, 6))
 plt.boxplot(all_distances, labels=labels, patch_artist=True,
             boxprops=dict(facecolor='skyblue'), showfliers=False)
 
-# Añadir títulos y etiquetas
 plt.title('Distribución de Distancias por Articulación')
 plt.xlabel('Articulación')
 plt.ylabel('Distancia Normalizada')
 
-# Mostrar el gráfico
 plt.tight_layout()
 plt.show()
-
-
-# lo que he adelantado un tab ---------------------------- 
-
-# pose_image = Image.fromarray(numpy_image)
-# pose_image

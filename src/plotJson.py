@@ -1,8 +1,6 @@
 """
 
-Le tienes que dar como argumento el directorio donde están los jsons.
-
-Este script se encarga de leer los jsons de las acciones y dibujar gráficos con los datos obtenidos.
+Arggument: The directory where the JSON files are located.
 
 """
 
@@ -42,8 +40,6 @@ class PlotJson:
             with open(self.json_path, 'r', encoding='latin-1') as f:
                 data = json.load(f)
         
-        # Ahora usamos self.actions_by_frame como un diccionario
-
         if "openlabel" in data:
 
             for frame_id, frame_data in data["openlabel"]["actions"].items():
@@ -51,20 +47,16 @@ class PlotJson:
                     for frame_interval in frame_data["frame_intervals"]:
                         frame_start = frame_interval["frame_start"]
                         frame_end = frame_interval["frame_end"]
-                        # print(f"Frame {frame_start} to {frame_end}: {frame_data['type']}")
 
-                        # esto no tiene mucho sentido ya pero bueno sigue sirviendo aunque se podria simplificar
                         for frame in range(frame_start, frame_end + 1):
                             if frame not in self.actions_by_frame:
                                 self.actions_by_frame[frame] = []
                             if frame_data["type"] not in self.actions_by_frame[frame]:
                                 self.actions_by_frame[frame].append(frame_data["type"])
-                        # --------------------------------------------------------------------------------------
 
                         frame_inter = frame_end - frame_start
 
                         if not any(frame_data["type"] == action[0] for action in self.actions):
-                            # print(f"Adding action {frame_data['type']} to actions list")
                             self.actions.append([frame_data["type"], 1, frame_inter, frame_inter, frame_inter])
                             self.actions_with_all_frames.append([frame_data["type"], frame_inter])
                         else:
@@ -81,8 +73,6 @@ class PlotJson:
                                 if action[0] == frame_data["type"]:
                                     action.append(frame_inter)
                         action_type = frame_data["type"].split('/')[0]
-
-                        # print("action_type: ", action_type)
 
                         if not any(action_type == action[0] for action in self.actions_especified):
                             self.actions_especified.append([action_type, 1])
@@ -98,20 +88,16 @@ class PlotJson:
                     for frame_interval in frame_data["frame_intervals"]:
                         frame_start = frame_interval["frame_start"]
                         frame_end = frame_interval["frame_end"]
-                        # print(f"Frame {frame_start} to {frame_end}: {frame_data['type']}")
 
-                        # esto no tiene mucho sentido ya pero bueno sigue sirviendo aunque se podria simplificar
                         for frame in range(frame_start, frame_end + 1):
                             if frame not in self.actions_by_frame:
                                 self.actions_by_frame[frame] = []
                             if frame_data["type"] not in self.actions_by_frame[frame]:
                                 self.actions_by_frame[frame].append(frame_data["type"])
-                        # --------------------------------------------------------------------------------------
 
                         frame_inter = frame_end - frame_start
 
                         if not any(frame_data["type"] == action[0] for action in self.actions):
-                            # print(f"Adding action {frame_data['type']} to actions list")
                             self.actions.append([frame_data["type"], 1, frame_inter, frame_inter, frame_inter])
                             self.actions_with_all_frames.append([frame_data["type"], frame_inter])
                         else:
@@ -130,8 +116,6 @@ class PlotJson:
 
                         action_type = frame_data["type"].split('/')[0]
 
-                        # print("action_type: ", action_type)
-
                         if not any(action_type == action[0] for action in self.actions_especified):
                             self.actions_especified.append([action_type, 1])
                         else:
@@ -139,9 +123,6 @@ class PlotJson:
                                 if action[0] == action_type:
                                     action[1] += 1
                                     break
-
-        # print("------------------------------------------------------------------------------------------")
-        # print(self.actions)
 
     def load_actions_from_json(self):
 
@@ -154,7 +135,6 @@ class PlotJson:
                 self.load_actions()
 
     def plot_result(self):
-        # Datos para los gráficos
         categories = [item[0] for item in self.actions]
         values_total = [item[1] for item in self.actions]
         frame_counts = [item[4] for item in self.actions]  
@@ -165,18 +145,16 @@ class PlotJson:
         fig, ax1 = plt.subplots(figsize=(10, 6))
 
         x = np.arange(len(categories))
-        bar_width = 0.4  # Ancho de las barras
+        bar_width = 0.4 
 
-        # Crear el primer gráfico de barras (conteo total de acciones) desplazando las barras
         ax1.bar(x - bar_width/2, values_total, bar_width, color='skyblue', label='Total Actions')
         ax1.set_xlabel('Actions')
         ax1.set_ylabel('Count', color='skyblue')
         ax1.tick_params(axis='y', labelcolor='skyblue')
         ax1.set_xticks(x)
-        ax1.set_xticklabels(categories, rotation=90)  # Rotar las etiquetas en el eje X a 90 grados (vertical)
+        ax1.set_xticklabels(categories, rotation=90) 
 
-        # Crear el segundo gráfico de barras (frames) desplazado
-        ax2 = ax1.twinx()  # Crear un segundo eje Y
+        ax2 = ax1.twinx()
         ax2.bar(x + bar_width/2, frame_counts, bar_width, color='green', alpha=0.6, label='Frames per Action')
         ax2.set_ylabel('Frames', color='green')
         ax2.tick_params(axis='y', labelcolor='green')
@@ -187,17 +165,14 @@ class PlotJson:
         action_corrected = []
 
         for i in range(len(self.actions_with_all_frames)):
-            # Inicializar una nueva sublista en action_corrected
             action_corrected.append([])
 
-            # Añadir los elementos desde la segunda posición en adelante
-            for j in range(1, len(self.actions_with_all_frames[i])):  # Empieza desde 1 para ignorar el primer elemento
+            for j in range(1, len(self.actions_with_all_frames[i])):  
                 action_corrected[i].append(self.actions_with_all_frames[i][j])
 
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.boxplot(action_corrected, labels=categories, patch_artist=True, showmeans=True, meanline=True, showfliers=False)
         
-        # Rotar las etiquetas del eje x a 90 grados
         ax.set_xticklabels(categories, rotation=90)
 
         ax.set_xlabel('Actions')

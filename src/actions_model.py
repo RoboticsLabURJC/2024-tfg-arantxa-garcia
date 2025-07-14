@@ -1,11 +1,5 @@
 """
-
-Este script se encarga de entrenar un modelo RandomForest con los datos balanceados y de reconstruir
-los videos prediciendo las acciones de cada frame. En este script luego predice sobre los datos
-de una sesion con datos desbalanceados.
-
-NO NECESITA ARGUMENTOS
-
+NO ARGUMENTS NEEDED
 """
 
 import json
@@ -39,17 +33,14 @@ def convert_to_multilabel(df):
     df['label'] = df['label'].map(label_map)
     multilabels = pd.get_dummies(df['label'])
     
-    # Asegurar que todas las columnas posibles existan (como valores numéricos)
     for label in label_map.values():
         if label not in multilabels:
             multilabels[label] = 0
         else:
-            multilabels[label] = multilabels[label].astype(int)  # Convertir a int
+            multilabels[label] = multilabels[label].astype(int) 
     
-    # Ordenar columnas para consistencia
     multilabels = multilabels[list(label_map.values())]
     
-    # Cuando alguna de las últimas tres acciones es 1, establecer left_hand a 1
     last_three = ['radio', 'drinking', 'reach_side']
     mask = multilabels[last_three].any(axis=1)
     multilabels['left_hand'] = np.where(mask, 1, multilabels['left_hand'])
@@ -59,14 +50,10 @@ def truncate(f, n):
     return np.floor(f * 10**n) / 10**n
 
 def compute_multilabel_confusion_matrix(Y_true, Y_pred, class_labels, set_name="train", threshold=0.5):
-    """
-    Versión simplificada para combinaciones específicas entre left_hand y otras acciones
-    """
-    # Convertir a arrays numpy
+    
     y_true = Y_true.values if hasattr(Y_true, 'values') else Y_true
     y_pred = (Y_pred >= threshold).astype(int)
     
-    # Definir combinaciones relevantes (left_hand con drinking, reach_side o radio)
     relevant_combinations = [
         [1, 0, 0, 0, 0, 0],  # both_hands solo
         [0, 1, 0, 0, 0, 0],  # left_hand solo
@@ -76,7 +63,6 @@ def compute_multilabel_confusion_matrix(Y_true, Y_pred, class_labels, set_name="
         [0, 0, 1, 0, 0, 0]   # right_hand solo
     ]
     
-    # Nombres legibles para las combinaciones
     combo_names = {
         (1, 0, 0, 0, 0, 0): "both_hands",
         (0, 1, 0, 0, 0, 0): "left_hand",
@@ -90,28 +76,22 @@ def compute_multilabel_confusion_matrix(Y_true, Y_pred, class_labels, set_name="
     size = len(relevant_combinations)
     conf_matrix = np.zeros((size, size), dtype=int)
     
-    # Mapeo de combinaciones a índices
     combo_to_idx = {tuple(combo): idx for idx, combo in enumerate(relevant_combinations)}
     
-    # Llenar matriz
     for true_row, pred_row in zip(y_true, y_pred):
         true_combo = tuple(true_row)
         pred_combo = tuple(pred_row)
         
-        # Solo considerar combinaciones relevantes
         if true_combo in combo_to_idx and pred_combo in combo_to_idx:
             i = combo_to_idx[true_combo]
             j = combo_to_idx[pred_combo]
             conf_matrix[i, j] += 1
     
-    # Convertir a DataFrame con nombres legibles
     index_labels = [combo_names[tuple(combo)] for combo in relevant_combinations]
     conf_matrix = pd.DataFrame(conf_matrix, index=index_labels, columns=index_labels)
     
-    # Normalizar por filas
     norm_conf = conf_matrix.div(conf_matrix.sum(axis=1), axis=0).fillna(0)
     
-    # Visualización
     plt.figure(figsize=(10, 8))
     sns.heatmap(norm_conf, annot=True, fmt=".2f", cmap="Blues", 
                 cbar_kws={'label': 'Porcentaje'})
@@ -123,56 +103,6 @@ def compute_multilabel_confusion_matrix(Y_true, Y_pred, class_labels, set_name="
     plt.show()
     
     return conf_matrix
-
-def compute_confusion_matrix(Y_true, Y_pred, class_labels, set_name="train", threshold=0.5):
-    preds_bin = (Y_pred >= threshold).astype(int)
-    num_classes = len(class_labels)
-    conf_matrix = np.zeros((num_classes, num_classes))
-
-    no_preds = yes_preds = 0
-    for true, pred in zip(Y_true.values, preds_bin):
-        true_idx = np.where(true == 1)[0]
-        pred_idx = np.where(pred == 1)[0]
-
-        if pred_idx.size == 0:
-            no_preds += 1
-        else:
-            yes_preds += 1
-            for t in true_idx:
-                for p in pred_idx:
-                    conf_matrix[t, p] += 1
-
-    row_sums = conf_matrix.sum(axis=1, keepdims=True)
-    norm_conf = np.divide(conf_matrix, row_sums, where=row_sums != 0)
-    norm_conf = truncate(norm_conf.T, 2)
-
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(norm_conf, annot=True, fmt=".2f", cmap="Blues", xticklabels=class_labels, yticklabels=class_labels)
-    plt.xlabel("Etiqueta Real")
-    plt.ylabel("Predicción")
-    plt.title(f"Matriz de Confusión - {set_name.capitalize()}")
-    fname = f"{set_name}_confusion_matrix_{datetime.now():%Y-%m-%d_%H-%M-%S}.png"
-    plt.savefig(fname)
-    plt.show()
-
-    correct = np.diag(conf_matrix)
-    per_class_total = conf_matrix.sum(axis=1)
-    accuracy = correct / per_class_total * 100
-
-    print(f"Porcentajes de aciertos por clase: {accuracy}")
-
-    plt.figure(figsize=(8, 5))
-    plt.bar(class_labels, accuracy, color='blue')
-    plt.title(f"Aciertos por clase ({set_name})")
-    plt.ylabel("Porcentaje")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig(fname.replace("matrix", "bar"))
-    plt.show()
-
-    print(f"Ejemplos sin predicciones en {set_name}: {no_preds}")
-    print(f"Ejemplos con predicciones en {set_name}: {yes_preds}")
-
 
 class RandomForest:
     def __init__(self, json_both, json_onlyleft, json_onlyright, json_radio, json_drinking, json_reachside):
@@ -192,7 +122,6 @@ class RandomForest:
 
         self.rows = []
 
-    # Función para cargar un archivo JSON con manejo de codificación
     def load_json(self, file_path):
         try:
             with open(file_path, 'r', encoding='utf-8-sig') as f:
@@ -204,7 +133,6 @@ class RandomForest:
 
     def open_jsons(self):
 
-        # Usar la función para cargar los archivos
         self.both = self.load_json(self.both_j)
         self.onlyleft = self.load_json(self.onlyleft_j)
         self.onlyright = self.load_json(self.onlyright_j)
@@ -265,7 +193,7 @@ class RandomForest:
                 "wrist_right": calc_ang(item['pose']['pose'][3], item['pose']['pose'][51], item['pose']['pose'][5]),
                 "wrist_left": calc_ang(item['pose']['pose'][2], item['pose']['pose'][50], item['pose']['pose'][4]),
                 
-                "label": item['type'] # cambiar el label
+                "label": item['type'] 
             }
 
             features_tras = {
@@ -290,7 +218,7 @@ class RandomForest:
                 "wrist_right": calc_ang(item['pose']['pose'][3], item['pose']['pose'][51], item['pose']['pose'][5]),
                 "wrist_left": calc_ang(item['pose']['pose'][2], item['pose']['pose'][50], item['pose']['pose'][4]),
                
-                "label": item['type'] # cambiar el label
+                "label": item['type']
             }
 
             features_gauss = {
@@ -315,7 +243,7 @@ class RandomForest:
                 "wrist_right": self.add_gaussian_noise(calc_ang(item['pose']['pose'][3], item['pose']['pose'][51], item['pose']['pose'][5])),
                 "wrist_left": self.add_gaussian_noise(calc_ang(item['pose']['pose'][2], item['pose']['pose'][50], item['pose']['pose'][4])),
                 
-                "label": item['type'] # cambiar el label
+                "label": item['type']
             }
             
             self.rows.append(features)
@@ -338,8 +266,8 @@ def train_actions_model(json_files_train, json_files_test):
     dataset_train = pd.DataFrame(RandomForest_performer_train.rows)
     dataset_train = convert_to_multilabel(dataset_train)
 
-    X_train = dataset_train.iloc[:, :-6]  # todo menos etiquetas
-    Y_train = dataset_train.iloc[:, -6:]  # etiquetas
+    X_train = dataset_train.iloc[:, :-6]  # all but labels
+    Y_train = dataset_train.iloc[:, -6:]  # labels
 
     # Cargar datos de prueba
     RandomForest_performer_test = RandomForest(*json_files_test)
@@ -354,10 +282,9 @@ def train_actions_model(json_files_train, json_files_test):
     dataset_test = pd.DataFrame(RandomForest_performer_test.rows)
     dataset_test = convert_to_multilabel(dataset_test)
 
-    X_test = dataset_test.iloc[:, :-6]  # todo menos etiquetas
-    Y_test = dataset_test.iloc[:, -6:]  # etiquetas
+    X_test = dataset_test.iloc[:, :-6]  # all but labels
+    Y_test = dataset_test.iloc[:, -6:]  # labels
 
-    # Imprimir distribución de clases
     train_class_counts = Y_train.sum(axis=0)
     test_class_counts = Y_test.sum(axis=0)
     
@@ -366,56 +293,14 @@ def train_actions_model(json_files_train, json_files_test):
     print("\nDistribución de clases en el conjunto de prueba:")
     print(test_class_counts)
 
-    # Convertir etiquetas en valores binarios
-    Y_train_bin = np.array(list(Y_train))
-    Y_test_bin = np.array(list(Y_test))
-
-    # Entrenamiento del modelo
     model = OneVsRestClassifier(RandomForestClassifier(random_state=1, class_weight='balanced', n_estimators=3))#, n_jobs=-1))
     model.fit(X_train, Y_train)
 
-
-    # Predicciones
     train_preds = model.predict(X_train)
     test_preds = model.predict(X_test)
 
-    # Etiquetas de las clases
-    class_labels = ['Both', 'Left', 'Right', 'Radio', 'Drinking', 'Reachside']
-
-    # # 1. Calcular matriz de confusión para cada clase (sin normalizar)
-    # mcm = multilabel_confusion_matrix(Y_test, test_preds)
-    
-    # # 2. Normalizar por filas (para ver porcentajes)
-    # mcm_normalized = []
-    # for i, matrix in enumerate(mcm):
-    #     # Normalizar cada matriz dividiendo por la suma de la fila (axis=1)
-    #     row_sums = matrix.sum(axis=1, keepdims=True)
-    #     normalized_matrix = matrix / row_sums  # Evitar división por cero
-    #     mcm_normalized.append(normalized_matrix)
-    
-    # # 3. Visualización (con porcentajes)
-    # plt.figure(figsize=(20, 15))
-    # for i, (matrix, label) in enumerate(zip(mcm_normalized, class_labels)):
-    #     plt.subplot(2, 3, i+1)
-    #     sns.heatmap(
-    #         matrix, 
-    #         annot=True, 
-    #         fmt=".2%",  # Formato de porcentaje
-    #         cmap='Blues', 
-    #         vmin=0, 
-    #         vmax=1,
-    #         xticklabels=['No ' + label, label], 
-    #         yticklabels=['No ' + label, label]
-    #     )
-    #     plt.title(f'Matriz de Confusión Normalizada ({label})')
-    #     plt.ylabel('Real')
-    #     plt.xlabel('Predicho')
-    # plt.tight_layout()
-    # plt.show()
-    # # Calcular matriz de confusión
     compute_multilabel_confusion_matrix(Y_train, train_preds, class_labels=list(Y_train.columns), set_name="train")
     compute_multilabel_confusion_matrix(Y_test, test_preds, class_labels=list(Y_train.columns), set_name="test")
     
-    # Devolver el modelo entrenado
     return model
 

@@ -13,7 +13,6 @@ class VideoProcessor:
         self.drawing_spec = self.mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
 
     def process_face(self, frame, results_face):
-        """Dibuja los puntos clave de la cara en el frame."""
         if results_face.multi_face_landmarks:
             p1, p2 = gaze.gaze(frame, results_face.multi_face_landmarks[0])
 
@@ -65,7 +64,6 @@ class VideoProcessor:
         cap.release()
         cv2.destroyAllWindows()
 
-# Ruta al video
 video_path = 'face.mp4'
 processor = VideoProcessor()
 processor.split_video_with_face_detection(video_path)
